@@ -242,6 +242,7 @@ const translations = {
     'contact_title_suffix': 'Vision.',
     'contact_description': 'Available for immersive web solutions, cinematic visual production, and high-impact design collaborations.',
     'email_label': 'Email',
+    'website_label': 'Website',
     'instagram_label': 'Instagram',
     'form_label_name': 'Name',
     'form_label_email': 'Email Address',
@@ -437,6 +438,7 @@ const translations = {
     'contact_title_suffix': 'পরিকল্পনা।',
     'contact_description': 'সহজ ওয়েব সমাধান, সিনেমাটিক ভিজ্যুয়াল এবং উচ্চ-মানের ডিজাইন সহযোগিতার জন্য উপলব্ধ।',
     'email_label': 'ইমেইল',
+    'website_label': 'ওয়েবসাইট',
     'instagram_label': 'ইনস্টাগ্রাম',
     'form_label_name': 'নাম',
     'form_label_email': 'ইমেইল ঠিকানা',
@@ -2096,17 +2098,17 @@ const Contact = () => {
             </a>
 
             <a 
-              href="https://www.instagram.com/sauvik_codeee" 
+              href="https://sauvikdev.in" 
               target="_blank" 
               rel="noopener noreferrer" 
               className="flex items-center gap-6 group"
             >
-              <div className="w-12 h-12 rounded-full border border-glass-border flex items-center justify-center text-[#E4405F] group-hover:bg-[#E4405F] group-hover:text-white transition-all duration-300">
-                <Instagram size={18} />
+              <div className="w-12 h-12 rounded-full border border-glass-border flex items-center justify-center text-brand-blue group-hover:bg-brand-blue group-hover:text-white transition-all duration-300">
+                <Globe size={18} />
               </div>
               <div>
-                <p className="text-[10px] font-bold text-brand-purple uppercase tracking-[0.2em]">{t('instagram_label')}</p>
-                <p className="text-app-text font-medium">@sauvik_codeee</p>
+                <p className="text-[10px] font-bold text-brand-purple uppercase tracking-[0.2em]">{t('website_label')}</p>
+                <p className="text-app-text font-medium">sauvikdev.in</p>
               </div>
             </a>
           </div>
