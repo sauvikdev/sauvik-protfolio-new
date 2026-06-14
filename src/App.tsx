@@ -5,6 +5,9 @@
 
 import React, { useState, useEffect, useRef, createContext, useContext } from 'react';
 import { motion, AnimatePresence, useScroll, useSpring, useInView } from 'motion/react';
+import { ToastProvider, useToast } from './components/Toast';
+import { AskSauvikAI } from './components/AskSauvikAI';
+import { FloatingContact } from './components/FloatingContact';
 import { 
   Code2, 
   Video, 
@@ -12,7 +15,11 @@ import {
   ExternalLink, 
   Mail, 
   Globe, 
+  MapPin,
   Instagram, 
+  Linkedin,
+  Twitter,
+  Github,
   Send,
   ChevronRight,
   Monitor,
@@ -172,11 +179,11 @@ const translations = {
     'feedback_subtitle': 'Feedback',
     'testimonial_title_main': 'Client',
     'testimonial_title_span': 'Stories',
-    'rev1_name': 'John Doe',
+    'rev1_name': 'Saikat Sarkar',
     'rev1_text': 'Sauvik transformed our vision into a digital masterpiece. The speed and quality were unmatched.',
-    'rev2_name': 'Sarah Smith',
+    'rev2_name': 'Aniket Dey',
     'rev2_text': 'Incredible attention to detail. The branding and website look absolutely futuristic!',
-    'rev3_name': 'Mike Johnson',
+    'rev3_name': 'Arko Paul',
     'rev3_text': 'Professional, creative, and very easy to work with. Highly recommended for any high-end project.',
 
     // Portfolio
@@ -243,6 +250,8 @@ const translations = {
     'contact_description': 'Available for immersive web solutions, cinematic visual production, and high-impact design collaborations.',
     'email_label': 'Email',
     'website_label': 'Website',
+    'location_label': 'Location',
+    'location_value': 'Gangasagar, West Bengal, India',
     'instagram_label': 'Instagram',
     'form_label_name': 'Name',
     'form_label_email': 'Email Address',
@@ -368,11 +377,11 @@ const translations = {
     'feedback_subtitle': 'ফিডব্যাক',
     'testimonial_title_main': 'গ্রাহকদের',
     'testimonial_title_span': 'মতামত',
-    'rev1_name': 'জন ডো',
+    'rev1_name': 'সৈকত সরকার',
     'rev1_text': 'সৌভিক আমাদের স্বপ্নকে একটি ডিজিটাল মাস্টারপিসে রূপান্তরিত করেছেন। তার গতি এবং গুণমান অতুলনীয় ছিল।',
-    'rev2_name': 'সারাহ স্মিথ',
+    'rev2_name': 'অনিকেত দে',
     'rev2_text': 'কাজের প্রতিটি ডিটেলে অবিশ্বাস্য মনোযোগ। ব্র্যান্ডিং এবং ওয়েবসাইটটি দেখতে চমৎকার কাল্পনিক যুগের মতো মনে হয়!',
-    'rev3_name': 'মাইক জনসন',
+    'rev3_name': 'অর্ক পাল',
     'rev3_text': 'পেশাদার, সৃজনশীল এবং যার সাথে কাজ করা খুব সহজ। যে কোনো উন্নত প্রকল্পের জন্য তাকে অত্যন্ত সুপারিশ করছি।',
 
     // Portfolio
@@ -439,6 +448,8 @@ const translations = {
     'contact_description': 'সহজ ওয়েব সমাধান, সিনেমাটিক ভিজ্যুয়াল এবং উচ্চ-মানের ডিজাইন সহযোগিতার জন্য উপলব্ধ।',
     'email_label': 'ইমেইল',
     'website_label': 'ওয়েবসাইট',
+    'location_label': 'অবস্থান',
+    'location_value': 'গঙ্গাসাগর, পশ্চিমবঙ্গ, ভারত',
     'instagram_label': 'ইনস্টাগ্রাম',
     'form_label_name': 'নাম',
     'form_label_email': 'ইমেইল ঠিকানা',
@@ -642,14 +653,33 @@ const Navbar = ({ isDark, toggleTheme }: { isDark: boolean, toggleTheme: () => v
             href="https://sauvikdev.in" 
             target="_blank" 
             rel="noopener noreferrer" 
-            className="flex items-center gap-2"
+            className="flex items-center gap-2.5"
           >
-            <div className="relative">
-              <Hexagon size={32} className="text-brand-blue group-hover:rotate-180 transition-transform duration-700" strokeWidth={1.5} />
+            <div className="relative flex items-center justify-center">
+              <svg 
+                viewBox="0 0 100 100" 
+                className="w-8 h-8 text-brand-blue group-hover:scale-110 transition-transform duration-300" 
+                fill="none" 
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <defs>
+                  <linearGradient id="logo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#00d2ff" />
+                    <stop offset="100%" stopColor="#0066ff" />
+                  </linearGradient>
+                </defs>
+                <path
+                  d="M80 33 L50 16 L20 33 L20 45 L80 55 L80 67 L50 84 L20 67"
+                  stroke="url(#logo-gradient)"
+                  strokeWidth="11"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
               <div className="absolute inset-0 bg-brand-blue/20 blur-md rounded-full scale-50 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
-            <span className="text-2xl font-display bg-gradient-to-r from-brand-blue via-brand-purple to-white bg-clip-text text-transparent tracking-[0.2em] uppercase">
-              SAUVIKDEV.IN
+            <span className="font-grotesk font-semibold text-lg sm:text-xl text-white tracking-tight flex items-center leading-none">
+              Sauvik<span className="text-brand-blue">Dev.in</span>
             </span>
           </a>
         </motion.div>
@@ -745,9 +775,8 @@ const CVModal = ({ isOpen, onClose, isDark }: { isOpen: boolean; onClose: () => 
             <h2 className="text-4xl font-bold mb-2 tracking-tight">SAUVIK DAS</h2>
             <p className="text-brand-blue font-bold uppercase tracking-[0.2em] text-xs">{t('cv_web_dev_designer')}</p>
             <div className="mt-6 flex flex-wrap gap-4 text-xs text-text-secondary">
-              <span className="flex items-center gap-1">📍 {lang === 'en' ? 'Gangasagar, South 24 Parganas, West Bengal, India' : 'গঙ্গাসাগর, দক্ষিণ ২৪ পরগণা, পশ্চিমবঙ্গ, ভারত'}</span>
               <span className="flex items-center gap-1">📧 sauvikd68@gmail.com</span>
-              <span className="flex items-center gap-1">📸 Instagram: @sauvik_codeee</span>
+              <span className="flex items-center gap-1">📸 Instagram: @sauvikdev.in</span>
             </div>
           </header>
 
@@ -1014,14 +1043,15 @@ const Hero = ({ onOpenCV }: { onOpenCV: () => void }) => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="text-text-secondary text-lg md:text-xl mb-10 h-8 font-light"
+          className="text-text-secondary text-base md:text-lg mb-10 h-8 font-light"
         >
           {text}<span className="border-r-2 border-brand-purple ml-1 animate-pulse" />
         </motion.div>
+        
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8 }}
+          transition={{ delay: 0.6 }}
           className="flex flex-col sm:flex-row gap-4 justify-center"
         >
           <button 
@@ -1029,13 +1059,13 @@ const Hero = ({ onOpenCV }: { onOpenCV: () => void }) => {
               const contact = document.getElementById('contact');
               contact?.scrollIntoView({ behavior: 'smooth' });
             }} 
-            className="px-10 py-3 bg-gradient-to-r from-brand-blue to-brand-purple text-white rounded-full font-bold transition-all transform hover:scale-105 shadow-lg shadow-brand-blue/20"
+            className="px-10 py-3 bg-gradient-to-r from-brand-blue to-brand-purple text-white rounded-full font-bold transition-all transform hover:scale-105 shadow-lg shadow-brand-blue/20 cursor-pointer"
           >
             {t('hire_me')}
           </button>
           <button 
             onClick={onOpenCV}
-            className="px-10 py-3 bg-white/5 border border-glass-border hover:border-brand-blue text-app-text rounded-full font-bold transition-all backdrop-blur-sm shadow-xl flex items-center justify-center gap-2 group"
+            className="px-10 py-3 bg-white/5 border border-glass-border hover:border-brand-blue text-app-text rounded-full font-bold transition-all backdrop-blur-sm shadow-xl flex items-center justify-center gap-2 group cursor-pointer"
           >
             <Download size={18} className="group-hover:translate-y-0.5 transition-transform" />
             {t('view_cv')}
@@ -1241,6 +1271,8 @@ const About = () => {
   );
 };
 
+
+
 const WhyChooseMe = () => {
   const { t, lang } = useLanguage();
   const points = [
@@ -1284,6 +1316,8 @@ const WhyChooseMe = () => {
     </section>
   );
 };
+
+
 
 const Testimonials = () => {
   const { t } = useLanguage();
@@ -1352,7 +1386,13 @@ const Pricing = () => {
   return (
     <section className="py-24 bg-app-bg relative overflow-hidden">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-brand-purple/5 blur-[120px] rounded-full" />
-      <div className="max-w-7xl mx-auto px-6 relative z-10">
+      <motion.div 
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-100px" }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        className="max-w-7xl mx-auto px-6 relative z-10"
+      >
         <div className="text-center mb-16">
           <span className="text-brand-blue font-bold text-xs tracking-[0.2em] uppercase mb-4 block">{t('investment')}</span>
           <h2 className="text-4xl md:text-5xl font-thin text-[var(--text-primary)] mb-4 uppercase">
@@ -1476,8 +1516,567 @@ const Pricing = () => {
             </div>
           </div>
         </motion.div>
-      </div>
+      </motion.div>
     </section>
+  );
+};
+
+const InteractiveChatbot = ({ lang, onClose }: { lang: 'en' | 'bn'; onClose: () => void }) => {
+  const [messages, setMessages] = useState<Array<{ id: number; sender: 'user' | 'bot'; text: string; time: string }>>([
+    {
+      id: 1,
+      sender: 'bot',
+      text: lang === 'en' 
+        ? "Hello! 👋 I'm your AI assistant designed for Sauvik's showcase platform. Ask me anything about Sauvik's professional services, tech stack, or creative design experience!"
+        : "হ্যালো! 👋 আমি সৌভিকের শৌখিন পোর্টফোলিও প্ল্যাটফর্মে নিয়োজিত এআই অ্যাসিস্ট্যান্ট। সৌভিকের প্রফেশনাল সার্ভিস, টেক স্ট্যাক বা ক্রিয়েটিভ ডিজাইন সম্পর্কে আমাকে যেকোনো প্রশ্ন করতে পারেন!",
+      time: '12:00 PM'
+    }
+  ]);
+  const [inputVal, setInputVal] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const promptPills = lang === 'en' ? [
+    { text: "Who is Sauvik Das?", key: "who" },
+    { text: "What services does he offer?", key: "services" },
+    { text: "What is his core tech stack?", key: "stack" },
+    { text: "How can I contact or hire him?", key: "hire" }
+  ] : [
+    { text: "সৌভিক দাস কে?", key: "who" },
+    { text: "তিনি কি কি সেবা প্রদান করেন?", key: "services" },
+    { text: "তার ব্যবহৃত প্রধান টেক স্ট্যাক কি?", key: "stack" },
+    { text: "কিভাবে তার সাথে যোগাযোগ বা কাজ করব?", key: "hire" }
+  ];
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isTyping]);
+
+  const handleSend = (textToSend: string) => {
+    if (!textToSend.trim()) return;
+
+    const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const userMsg = {
+      id: Date.now(),
+      sender: 'user' as const,
+      text: textToSend,
+      time: currentTime
+    };
+    setMessages(prev => [...prev, userMsg]);
+    setInputVal('');
+    setIsTyping(true);
+
+    setTimeout(() => {
+      let replyText = '';
+      const lower = textToSend.toLowerCase();
+
+      if (lower.includes('who') || lower.includes('সৌভিক') || lower.includes('background') || lower.includes('portfolio') || lower.includes('das')) {
+        replyText = lang === 'en'
+          ? "Sauvik Das is an multi-disciplinary Web Developer & UI/UX Designer based in West Bengal, India. He builds high-performance responsive portals, personal brand websites, and interactive single-page applications optimized for indexing and rapid response."
+          : "সৌভিক দাস একজন অভিজ্ঞ ওয়েব ডেভেলপার ও ইউআই/ইউএক্স ডিজাইনার। তিনি অত্যন্ত দ্রুতগতির ওয়েবসাইট, পোর্টাল এবং রিয়েল-টাইম সিঙ্গেল-পেজ অ্যাপ্লিকেশন তৈরি করেন যা সম্পূর্ণ ইউজার-ফ্রেন্ডলি।";
+      } else if (lower.includes('service') || lower.includes('সেবা') || lower.includes('deliver') || lower.includes('offer')) {
+        replyText = lang === 'en'
+          ? "Sauvik delivers bespoke personal brand portfolios, conversion-focused creative landing showcases, complex frontend portals, premium video post-production editing, and high-CTR social media asset designs tailored for high retention."
+          : "সৌভিক মূলত কাস্টম কর্পোরেট বা ইনডিভিজুয়াল পোর্টফোলিও ওয়েবসাইট, হাই-কনভার্সন ক্রিয়েটিভ ল্যান্ডিং পেজ, এবং সোশাল মিডিয়ার জন্য উচ্চমানের ভিডিও এডিটিং ও গ্রাফিক্স থাম্বনেল ডিজাইন সেবা প্রদান করেন।";
+      } else if (lower.includes('tech') || lower.includes('stack') || lower.includes('প্রযুক্তি') || lower.includes('react') || lower.includes('code')) {
+        replyText = lang === 'en'
+          ? "His core technical ecosystem includes React 19, TypeScript, Tailwind CSS v4, Vite, Node.js (Express), and deployment integration setups on premium cloud providers like Vercel."
+          : "তার প্রধান টেকনিক্যাল দক্ষতার মধ্যে রয়েছে React 19, TypeScript, Tailwind CSS v4, Vite, Node.js (Express), এবং ভিজিটর আউটের জন্য Vercel ডিপ্লয়মেন্ট সেটআপ।";
+      } else if (lower.includes('contact') || lower.includes('hire') || lower.includes('যোগাযোগ') || lower.includes('email')) {
+        replyText = lang === 'en'
+          ? "You can contact Sauvik directly via business email at sauvikd68@gmail.com, or visit his personal landing coordinate at sauvikdev.in. He is also responsive across his social channels @sauvikdev!"
+          : "সৌভিকের সাথে কাজ করতে সরাসরি sauvikd68@gmail.com ইমেলের মাধ্যমে যোগাযোগ করতে পারেন। এছাড়া sauvikdev.in ওয়েবসাইটে বা তার সোশাল মিডিয়া হ্যান্ডেল @sauvikdev এ নক করতে পারেন!";
+      } else {
+        replyText = lang === 'en'
+          ? "That is a great query! Sauvik works diligently to craft digital interfaces that are responsive, accessible, and fast. Let me know if you would like me to summarize his core services, projects, or professional coordinates!"
+          : "এটি একটি চমৎকার প্রশ্ন! সৌভিক মূলত অসাধারণ ডিজাইন ও পরিষ্কার কোডের মাধ্যমে ডিজিটাল প্ল্যাটফর্ম তৈরি করতে পছন্দ করেন। তার অভিজ্ঞতা বা ইমেইল আইডি জানতে চাইলে আমায় বলতে পারেন!";
+      }
+
+      setMessages(prev => [...prev, {
+        id: Date.now() + 1,
+        sender: 'bot' as const,
+        text: replyText,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }]);
+      setIsTyping(false);
+    }, 1000);
+  };
+
+  return (
+    <div className="w-[320px] xs:w-[360px] sm:w-[460px] bg-[#060814]/95 border border-white/10 rounded-2xl overflow-hidden flex flex-col h-[450px] shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+      <div className="absolute top-[-30%] right-[-20%] w-[80%] h-[80%] rounded-full bg-brand-blue/10 blur-3xl pointer-events-none" />
+      
+      <div className="p-4 bg-white/[0.02] border-b border-white/5 flex items-center justify-between z-10">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-brand-blue/10 border border-brand-blue/20 flex items-center justify-center text-lg shadow-lg">
+            🤖
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-bold text-white tracking-wide">AI Assistant Console</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            </div>
+            <span className="text-[9px] text-emerald-400 font-mono uppercase tracking-wider font-bold">online // model active</span>
+          </div>
+        </div>
+        <button 
+          onClick={onClose}
+          className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+        >
+          <X size={16} />
+        </button>
+      </div>
+
+      <div className="flex-grow overflow-y-auto p-4 space-y-4 font-sans select-text scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+        {messages.map((msg) => (
+          <div key={msg.id} className={`flex gap-3 max-w-[85%] ${msg.sender === 'user' ? 'ml-auto justify-end' : ''}`}>
+            {msg.sender === 'bot' && (
+              <div className="w-8 h-8 rounded-full bg-brand-blue/10 border border-brand-blue/20 flex items-center justify-center text-xs shrink-0 self-end shadow-md">
+                🤖
+              </div>
+            )}
+            <div className="flex flex-col gap-1">
+              <div className={`px-3 py-2 rounded-2xl text-[12px] leading-relaxed shadow-md ${
+                msg.sender === 'user' 
+                  ? 'bg-brand-blue text-white rounded-br-none' 
+                  : 'bg-white/5 border border-white/10 text-white/90 rounded-bl-none'
+              }`}>
+                {msg.text}
+              </div>
+              <span className={`text-[8px] font-mono text-white/30 ${msg.sender === 'user' ? 'text-right' : ''}`}>
+                {msg.time}
+              </span>
+            </div>
+          </div>
+        ))}
+
+        {isTyping && (
+          <div className="flex gap-3 max-w-[85%]">
+            <div className="w-8 h-8 rounded-full bg-brand-blue/10 border border-brand-blue/20 flex items-center justify-center text-xs shrink-0 self-end shadow-md">
+              🤖
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-2xl rounded-bl-none px-3 py-2 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-white/40 animate-bounce [animation-delay:-0.3s]" />
+              <span className="w-1.5 h-1.5 rounded-full bg-white/40 animate-bounce [animation-delay:-0.15s]" />
+              <span className="w-1.5 h-1.5 rounded-full bg-white/40 animate-bounce" />
+            </div>
+          </div>
+        )}
+        <div ref={scrollRef} />
+      </div>
+
+      <div className="p-2 bg-black/30 border-t border-white/5 flex gap-1.5 overflow-x-auto select-none z-10 scrollbar-none shrink-0">
+        {promptPills.map((pill) => (
+          <button
+            key={pill.key}
+            onClick={() => handleSend(pill.text)}
+            className="px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:border-brand-blue/40 text-[9.5px] text-white/80 hover:text-white whitespace-nowrap hover:bg-brand-blue/10 transition-all font-sans shrink-0 cursor-pointer"
+          >
+            {pill.text}
+          </button>
+        ))}
+      </div>
+
+      <form 
+        onSubmit={(e) => { e.preventDefault(); handleSend(inputVal); }}
+        className="p-3 bg-white/[0.01] border-t border-white/5 flex gap-2 items-center z-10 shrink-0"
+      >
+        <input 
+          type="text"
+          value={inputVal}
+          onChange={(e) => setInputVal(e.target.value)}
+          placeholder={lang === 'en' ? "Ask a custom message..." : "আপনার প্রশ্নটি লিখুন..."}
+          className="flex-grow px-3 py-2 rounded-xl bg-[#030409] border border-white/10 text-[11px] text-white focus:outline-none focus:border-brand-blue/50 placeholder-white/20"
+        />
+        <button 
+          type="submit"
+          className="w-8 h-8 rounded-xl bg-brand-blue hover:bg-brand-blue/90 text-white flex items-center justify-center shadow-lg hover:shadow-brand-blue/20 active:scale-95 transition-all shrink-0 cursor-pointer"
+        >
+          <Send size={12} />
+        </button>
+      </form>
+    </div>
+  );
+};
+
+const InteractiveWeather = ({ lang, onClose }: { lang: 'en' | 'bn'; onClose: () => void }) => {
+  const [selectedCity, setSelectedCity] = useState<'gangasagar' | 'kolkata' | 'newyork' | 'london'>('gangasagar');
+
+  const weatherData = {
+    gangasagar: {
+      nameEn: 'Gangasagar',
+      nameBn: 'গঙ্গাসাগর',
+      temp: '28°C',
+      conditionEn: 'Tropical Breeze',
+      conditionBn: 'উষ্ণমণ্ডলীয় বাতাস',
+      icon: '⛅',
+      humidity: '78%',
+      wind: '14 km/h',
+      uvIndex: 'High',
+      press: '1012 hPa',
+      forecast: lang === 'en' 
+        ? [ { day: 'Mon', temp: '29°C', icon: '☀️' }, { day: 'Tue', temp: '28°C', icon: '🌧️' }, { day: 'Wed', temp: '27°C', icon: '⛈️' } ]
+        : [ { day: 'সোম', temp: '২৯°সে', icon: '☀️' }, { day: 'মঙ্গল', temp: '২৮°সে', icon: '🌧️' }, { day: 'বুধ', temp: '২৭°সে', icon: '⛈️' } ]
+    },
+    kolkata: {
+      nameEn: 'Kolkata',
+      nameBn: 'কলকাতা',
+      temp: '32°C',
+      conditionEn: 'Humid Haze',
+      conditionBn: 'আর্দ্র কুয়াশা',
+      icon: '☀️',
+      humidity: '82%',
+      wind: '10 km/h',
+      uvIndex: 'Very High',
+      press: '1008 hPa',
+      forecast: lang === 'en'
+        ? [ { day: 'Mon', temp: '33°C', icon: '☀️' }, { day: 'Tue', temp: '31°C', icon: '⛅' }, { day: 'Wed', temp: '30°C', icon: '⛈️' } ]
+        : [ { day: 'সোম', temp: '৩৩°সে', icon: '☀️' }, { day: 'মঙ্গল', temp: '৩১°সে', icon: '⛅' }, { day: 'বুধ', temp: '৩০°সে', icon: '⛈️' } ]
+    },
+    newyork: {
+      nameEn: 'New York',
+      nameBn: 'নিউ ইয়র্ক',
+      temp: '18°C',
+      conditionEn: 'Clear Skies',
+      conditionBn: 'পরিষ্কার আকাশ',
+      icon: '🌙',
+      humidity: '45%',
+      wind: '18 km/h',
+      uvIndex: 'Low',
+      press: '1018 hPa',
+      forecast: lang === 'en'
+        ? [ { day: 'Mon', temp: '19°C', icon: '☀️' }, { day: 'Tue', temp: '17°C', icon: '⛅' }, { day: 'Wed', temp: '15°C', icon: '🌧️' } ]
+        : [ { day: 'সোম', temp: '১৯°সে', icon: '☀️' }, { day: 'মঙ্গল', temp: '১৭°সে', icon: '⛅' }, { day: 'বুধ', temp: '১৫°সে', icon: '🌧️' } ]
+    },
+    london: {
+      nameEn: 'London',
+      nameBn: 'লন্ডন',
+      temp: '14°C',
+      conditionEn: 'Light Drizzle',
+      conditionBn: 'গুড়িগুড়ি বৃষ্টি',
+      icon: '🌧️',
+      humidity: '90%',
+      wind: '22 km/h',
+      uvIndex: 'Low',
+      press: '1006 hPa',
+      forecast: lang === 'en'
+        ? [ { day: 'Mon', temp: '13°C', icon: '🌧️' }, { day: 'Tue', temp: '14°C', icon: '⛅' }, { day: 'Wed', temp: '16°C', icon: '☀️' } ]
+        : [ { day: 'সোম', temp: '১৩°সে', icon: '🌧️' }, { day: 'মঙ্গল', temp: '১৪°সে', icon: '⛅' }, { day: 'বুধ', temp: '১৬°সে', icon: '☀️' } ]
+    }
+  };
+
+  const active = weatherData[selectedCity];
+
+  return (
+    <div className="w-[320px] xs:w-[360px] sm:w-[460px] bg-[#040816]/95 border border-white/10 rounded-2xl overflow-hidden flex flex-col h-[450px] shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+      <div className="absolute top-[-30%] left-[-20%] w-[80%] h-[80%] rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
+      
+      <div className="p-4 bg-white/[0.02] border-b border-white/5 flex items-center justify-between z-10">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-lg shadow-lg filter drop-shadow-[0_0_8px_rgba(6,182,212,0.3)]">
+            ⛅
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-bold text-white tracking-wide">Weather Tracking Unit</span>
+              <span className="px-1.5 py-0.5 bg-cyan-500/20 text-[#00d2ff] rounded text-[8px] font-mono uppercase tracking-widest leading-none font-black">ACTIVE</span>
+            </div>
+            <span className="text-[10px] text-text-secondary font-mono">live interactive weather module</span>
+          </div>
+        </div>
+        <button 
+          onClick={onClose}
+          className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+        >
+          <X size={16} />
+        </button>
+      </div>
+
+      <div className="flex-grow overflow-y-auto p-4 space-y-4 font-sans flex flex-col justify-between scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+        <div className="grid grid-cols-4 gap-1.5 z-10 shrink-0">
+          {(Object.keys(weatherData) as Array<keyof typeof weatherData>).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setSelectedCity(tab)}
+              className={`py-1.5 rounded-lg border text-[10px] font-bold tracking-tight transition-all uppercase cursor-pointer ${
+                selectedCity === tab
+                  ? 'bg-cyan-500/20 border-cyan-500/60 text-[#00d2ff]'
+                  : 'bg-white/5 border-white/10 text-white/60 hover:text-white hover:border-white/20'
+              }`}
+            >
+              {lang === 'en' ? weatherData[tab].nameEn : weatherData[tab].nameBn}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center justify-between bg-white/[0.01]/70 border border-white/5 rounded-xl p-4 relative py-5 overflow-hidden flex-grow my-2">
+          <div className="absolute top-[-20%] right-[-10%] w-32 h-32 rounded-full bg-cyan-500/5 blur-2xl" />
+          
+          <div className="space-y-1 z-10">
+            <span className="text-[9px] text-[#00d2ff] uppercase font-mono tracking-wider">{lang === 'en' ? 'LOCAL SENSORS:' : 'লোকাল সেন্সর:'}</span>
+            <div className="flex items-baseline">
+              <span className="text-4xl font-black text-white leading-none tracking-tighter">{active.temp}</span>
+            </div>
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="text-[10px] font-medium text-white/70 uppercase tracking-tight">{lang === 'en' ? active.conditionEn : active.conditionBn}</span>
+            </div>
+          </div>
+
+          <div className="text-5xl filter drop-shadow-[0_0_15px_rgba(0,210,255,0.45)] select-none">
+            {active.icon}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-4 gap-1.5 shrink-0">
+          <div className="p-2 bg-white/[0.01] border border-white/5 rounded-lg text-center">
+            <span className="text-[8px] text-white/40 block font-mono">{lang === 'en' ? 'HUM' : 'আর্দ্রতা'}</span>
+            <p className="text-[11px] font-bold text-white">{active.humidity}</p>
+          </div>
+          <div className="p-2 bg-white/[0.01] border border-white/5 rounded-lg text-center">
+            <span className="text-[8px] text-white/40 block font-mono">{lang === 'en' ? 'WIND' : 'বায়ু'}</span>
+            <p className="text-[11px] font-bold text-white">{active.wind}</p>
+          </div>
+          <div className="p-2 bg-white/[0.01] border border-white/5 rounded-lg text-center">
+            <span className="text-[8px] text-white/40 block font-mono">UV</span>
+            <p className="text-[11px] font-bold text-cyan-400">{active.uvIndex}</p>
+          </div>
+          <div className="p-2 bg-white/[0.01] border border-white/5 rounded-lg text-center">
+            <span className="text-[8px] text-white/40 block font-mono">PRESS</span>
+            <p className="text-[11px] font-bold text-white">{active.press}</p>
+          </div>
+        </div>
+
+        <div className="bg-black/30 border border-white/5 rounded-lg p-3 space-y-2 shrink-0">
+          <h5 className="text-[8px] font-mono font-bold text-white/40 uppercase tracking-widest">{lang === 'en' ? 'OUTLOOK FORECAST:' : 'ভবিষ্যৎ পূর্বাভাস:'}</h5>
+          <div className="grid grid-cols-3 gap-1.5">
+            {active.forecast.map((fc, i) => (
+              <div key={i} className="flex items-center justify-between px-2 py-1.5 bg-white/5 rounded border border-white/5">
+                <span className="text-[10px] text-white/70">{fc.day}</span>
+                <span className="text-xs select-none">{fc.icon}</span>
+                <span className="text-[10px] text-white font-bold">{fc.temp}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ChatbotMockup = ({ lang }: { lang: 'en' | 'bn' }) => {
+  return (
+    <div className="absolute inset-0 bg-[#05060d] bg-gradient-to-br from-[#0a0f26] via-[#05060d] to-[#120822] overflow-hidden p-3 md:p-3.5 flex flex-col justify-between select-none">
+      {/* Glow overlays */}
+      <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[65%] rounded-full bg-brand-blue/15 blur-3xl pointer-events-none" />
+      <div className="absolute bottom-[-15%] right-[-10%] w-[50%] h-[55%] rounded-full bg-brand-purple/20 blur-3xl pointer-events-none" />
+      
+      {/* Header bar */}
+      <div className="flex items-center justify-between z-10">
+        <div className="bg-brand-blue/15 text-[#00d2ff] border border-brand-blue/35 roundedpx-1 md:rounded-md px-1 py-0.5 text-[6px] md:text-[7px] font-sans font-extrabold tracking-wider uppercase flex items-center gap-0.5 shadow-[0_0_10px_rgba(0,210,255,0.1)]">
+          <span className="w-1 h-1 rounded-full bg-[#00d2ff] animate-pulse shrink-0" />
+          <span>AI POWERED</span>
+        </div>
+        
+        <div className="flex items-center gap-0.5 text-[6.5px] md:text-[7px] font-black tracking-tight text-white font-sans uppercase">
+          <span className="text-[#00d2ff]">&lt;/&gt;</span>
+          <span>SAUVIK</span>
+          <span className="text-brand-blue">DEV</span>
+        </div>
+      </div>
+
+      {/* Content Grid */}
+      <div className="grid grid-cols-12 gap-2 items-center z-10 flex-grow my-0.5">
+        {/* Left Column (Main Info) */}
+        <div className="col-span-5 flex flex-col gap-0.5">
+          <h4 className="text-[9px] md:text-[11px] font-black tracking-tight text-white uppercase leading-none font-sans">
+            AI CHATBOT
+          </h4>
+          <h4 className="text-[7.5px] md:text-[9.5px] font-extrabold tracking-tight text-brand-blue uppercase leading-none font-sans">
+            WEB PROJECT
+          </h4>
+          
+          <div className="h-[1px] w-6 bg-brand-blue/50 my-0.5" />
+          
+          <p className="text-[5px] md:text-[6px] text-white/50 font-sans tracking-wide leading-relaxed">
+            {lang === 'en' ? 'Smart conversations.' : 'স্মার্ট কথপোকথন।'}
+          </p>
+          <p className="text-[5px] md:text-[6px] text-white/50 font-sans tracking-wide leading-relaxed">
+            {lang === 'en' ? 'Real-time solutions.' : 'রিয়েল-টাইম সমাধান।'}
+          </p>
+
+          <div className="flex flex-col gap-0.5 mt-0.5 text-[4.5px] md:text-[5px] text-white/60 font-mono">
+            <div className="flex items-center gap-0.5">
+              <span className="text-[#00d2ff] font-bold">✓</span>
+              <span>Gemini API</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column (Console) */}
+        <div className="col-span-7 h-full flex flex-col justify-center">
+          <div className="w-full bg-[#0d1225]/95 border border-white/10 rounded-lg p-1 flex flex-col justify-between h-[65px] md:h-[72px] relative overflow-hidden backdrop-blur-md">
+            {/* Simulation headers */}
+            <div className="flex items-center justify-between border-b border-white/5 pb-0.5 mb-0.5">
+              <div className="flex items-center gap-0.5">
+                <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <span className="text-[4.5px] md:text-[5px] font-bold text-white tracking-wide uppercase font-sans">AI Chatbot</span>
+              </div>
+              <span className="text-[4px] text-emerald-400 font-mono">online</span>
+            </div>
+
+            {/* Simulating chat messages */}
+            <div className="flex flex-col gap-0.5 overflow-hidden flex-grow px-0.5 justify-end">
+              {/* Bot bubble */}
+              <div className="flex gap-0.5 items-start">
+                <div className="w-2 h-2 rounded-full bg-brand-blue/20 border border-brand-blue/30 flex items-center justify-center text-[4px] shrink-0">
+                  🤖
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded px-1 py-0.5 text-[4px] text-white/90 leading-tight max-w-[85%] font-sans">
+                  Hello! 👋 I'm your AI assistant.
+                </div>
+              </div>
+              
+              {/* User bubble */}
+              <div className="flex gap-0.5 items-start justify-end">
+                <div className="bg-[#0055ff] rounded px-1 py-0.5 text-[4px] text-white font-medium leading-tight max-w-[85%] font-sans">
+                  Explain AI summary.
+                </div>
+              </div>
+
+              {/* Bot reply */}
+              <div className="flex gap-0.5 items-start">
+                <div className="w-2 h-2 rounded-full bg-brand-blue/20 border border-brand-blue/30 flex items-center justify-center text-[4px] shrink-0">
+                  🤖
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded px-1 py-0.5 text-[4px] text-white/90 leading-tight max-w-[85%] font-sans truncate">
+                  AI mimics human intelligence to learn and solve...
+                </div>
+              </div>
+            </div>
+
+            {/* Simulated input bar */}
+            <div className="mt-0.5 bg-[#060a17] border border-white/5 rounded px-1 py-0.5 flex items-center justify-between">
+              <span className="text-[4px] text-white/30 font-sans">Type message...</span>
+              <div className="w-1.5 h-1.5 rounded-full bg-brand-blue flex items-center justify-center text-[3px] text-white">
+                ➤
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer bar */}
+      <div className="flex items-center justify-between border-t border-white/5 pt-0.5 z-10">
+        <div className="flex items-center gap-0.5">
+          <span className="text-[3.5px] font-mono font-bold text-white/30 uppercase tracking-widest mr-0.5">STK //</span>
+          <span className="px-1 py-0.2 bg-orange-500/10 border border-orange-500/10 text-orange-400 rounded-sm text-[3.5px] font-bold font-mono">HTML5</span>
+          <span className="px-1 py-0.2 bg-blue-500/10 border border-blue-500/10 text-blue-400 rounded-sm text-[3.5px] font-bold font-mono">CSS3</span>
+          <span className="px-1 py-0.2 bg-yellow-500/10 border border-yellow-500/10 text-yellow-500 rounded-sm text-[3.5px] font-bold font-mono">JS</span>
+          <span className="px-1 py-0.2 bg-sky-500/10 border border-sky-500/10 text-sky-400 rounded-sm text-[3.5px] font-bold font-mono">REACT</span>
+        </div>
+
+        <div className="text-[5.5px] md:text-[6.5px] font-extrabold text-brand-blue tracking-tighter font-sans flex items-center gap-0.5">
+          <span>sauvikdev.in</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const WeatherMockup = ({ lang }: { lang: 'en' | 'bn' }) => {
+  return (
+    <div className="absolute inset-0 bg-[#040914] bg-gradient-to-br from-[#0b1c31] via-[#040914] to-[#180826] overflow-hidden p-3 md:p-3.5 flex flex-col justify-between select-none">
+      {/* Ambient sky glows */}
+      <div className="absolute top-[-25%] right-[-10%] w-[60%] h-[60%] rounded-full bg-[#00d2ff]/10 blur-3xl pointer-events-none" />
+      <div className="absolute bottom-[-20%] left-[-15%] w-[55%] h-[55%] rounded-full bg-brand-purple/15 blur-3xl pointer-events-none" />
+      
+      {/* Header of the poster */}
+      <div className="flex items-center justify-between z-10">
+        <div className="bg-[#00d2ff]/10 text-[#00d2ff] border border-[#00d2ff]/20 roundedpx-1 md:rounded-md px-1 py-0.5 text-[6px] md:text-[6.5px] font-sans font-extrabold tracking-wider uppercase flex items-center gap-0.5">
+          <span>TRACK WEATHER</span>
+        </div>
+        
+        <div className="flex items-center gap-0.5 text-[6.5px] md:text-[7px] font-black tracking-tight text-white font-sans uppercase">
+          <span className="text-[#00d2ff]">&lt;/&gt;</span>
+          <span>SAUVIK</span>
+          <span className="text-brand-blue">DEV</span>
+        </div>
+      </div>
+
+      {/* Main Grid */}
+      <div className="grid grid-cols-12 gap-2 items-center z-10 flex-grow my-0.5">
+        {/* Left Column (Widget Details) */}
+        <div className="col-span-5 flex flex-col gap-0.5">
+          <h4 className="text-[9px] md:text-[11px] font-black tracking-tight text-white uppercase leading-none font-sans">
+            WEATHER FLOW
+          </h4>
+          <h4 className="text-[7.5px] md:text-[9.5px] font-extrabold tracking-tight text-[#00d2ff] uppercase leading-none font-sans">
+            GPS UTILITY
+          </h4>
+          
+          <div className="h-[1px] w-6 bg-[#00d2ff]/50 my-0.5" />
+          
+          <p className="text-[5px] md:text-[6px] text-white/50 font-sans tracking-wide leading-relaxed">
+            {lang === 'en' ? 'Live GPS tracking.' : 'লাইভ জিপিএস ট্র্যাকিং।'}
+          </p>
+          <p className="text-[5px] md:text-[6px] text-white/50 font-sans tracking-wide leading-relaxed">
+            {lang === 'en' ? 'Dynamic forecasts.' : 'ডায়নামিক পূর্বাভাস।'}
+          </p>
+        </div>
+
+        {/* Right Column (Weather Glass Widget Mockup) */}
+        <div className="col-span-7 h-full flex flex-col justify-center">
+          <div className="w-full bg-[#081222]/90 border border-[#00d2ff]/20 rounded-lg p-1 flex flex-col justify-between h-[65px] md:h-[72px] relative overflow-hidden backdrop-blur-md">
+            
+            {/* Widget top bar */}
+            <div className="flex items-center justify-between border-b border-white/5 pb-0.5">
+              <div className="flex items-center gap-0.5">
+                <span className="text-[4px] text-white/50 font-mono uppercase font-bold tracking-wider">LIVE LOCATION</span>
+              </div>
+              <span className="text-[4px] text-cyan-400 font-mono uppercase animate-pulse">GPS ACTIVE</span>
+            </div>
+
+            {/* Weather numbers display */}
+            <div className="flex items-center justify-between py-0.5 px-0.5">
+              <div>
+                <span className="text-[13px] md:text-[15px] font-black text-white leading-none font-sans">24°C</span>
+                <p className="text-[4px] text-white/60 font-sans uppercase font-bold mt-0.5">Partly Cloudy</p>
+              </div>
+              <div className="w-5 h-5 flex items-center justify-center text-[12px] filter drop-shadow-[0_0_8px_rgba(0,210,255,0.4)]">
+                ⛅
+              </div>
+            </div>
+
+            {/* Stats info boxes */}
+            <div className="grid grid-cols-2 gap-0.5 border-t border-white/5 pt-0.5 text-[3.5px] text-white/70 font-mono">
+              <div className="bg-white/5 p-0.2 rounded flex flex-col text-center">
+                <span>WIND: 12km/h</span>
+              </div>
+              <div className="bg-white/5 p-0.2 rounded flex flex-col text-center">
+                <span>HUM: 65%</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      {/* Footer info bar */}
+      <div className="flex items-center justify-between border-t border-white/5 pt-0.5 z-10">
+        <div className="flex items-center gap-0.5">
+          <span className="text-[3.5px] font-mono font-bold text-white/30 uppercase tracking-widest mr-0.5">STK //</span>
+          <span className="px-1 py-0.2 bg-yellow-500/10 border border-yellow-500/10 text-yellow-500 rounded-sm text-[3.5px] font-bold font-mono">JS</span>
+          <span className="px-1 py-0.2 bg-blue-500/10 border border-blue-500/10 text-blue-400 rounded-sm text-[3.5px] font-bold font-mono">CSS3</span>
+          <span className="px-1 py-0.2 bg-emerald-500/10 border border-emerald-500/10 text-emerald-400 rounded-sm text-[3.5px] font-bold font-mono">API</span>
+        </div>
+
+        <div className="text-[5.5px] md:text-[6.5px] font-extrabold text-[#00d2ff] tracking-tighter font-sans flex items-center gap-0.5">
+          <span>sauvikdev.in</span>
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -1486,41 +2085,42 @@ interface PortfolioItemProps {
   src: string;
   title: string;
   category: string;
-  link?: string;
+  description?: string;
+  liveDemo?: string;
   onPreview: (src: string) => void;
   stats?: {
     techStack: string;
     clientType: string;
     impactScore: string;
   };
+  customThumbnail?: React.ReactNode;
 }
 
-const PortfolioItem = ({ src, title, category, link, onPreview, stats }: PortfolioItemProps) => {
+const PortfolioItem = ({ src, title, category, description, liveDemo, onPreview, stats, customThumbnail }: PortfolioItemProps) => {
   const { t, lang } = useLanguage();
-  const handleClick = () => {
-    if (link) {
-      window.open(link, '_blank', 'noopener,noreferrer');
-    } else {
-      onPreview(src);
-    }
+  
+  const handleCardClick = () => {
+    onPreview(src);
   };
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
+    <div 
       className="group relative cursor-pointer flex flex-col h-full bg-white/[0.02] border border-white/5 rounded-2xl overflow-hidden hover:border-brand-blue/30 transition-all duration-500 hover:bg-white/[0.04]"
-      onClick={handleClick}
+      onClick={handleCardClick}
     >
       {/* Thumbnail Aspect frame */}
       <div className="relative aspect-[16/11] overflow-hidden bg-[#0a0a0c]">
-        <img 
-          src={src} 
-          alt={title} 
-          className="w-full h-full object-cover opacity-75 transition-all duration-700 group-hover:scale-105 group-hover:opacity-90"
-          referrerPolicy="no-referrer"
-        />
+        {customThumbnail ? (
+          customThumbnail
+        ) : (
+          <img 
+            src={src} 
+            alt={title} 
+            className="w-full h-full object-cover opacity-75 transition-all duration-700 group-hover:scale-105 group-hover:opacity-90"
+            referrerPolicy="no-referrer"
+            loading="lazy"
+          />
+        )}
         {/* Subtle visual guide on hover */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#09090b]/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
           <div className="px-4 py-2 rounded-xl bg-black/60 border border-white/10 backdrop-blur-md text-[11px] font-medium text-white flex items-center gap-2 shadow-lg scale-90 group-hover:scale-100 transition-transform duration-300">
@@ -1535,9 +2135,11 @@ const PortfolioItem = ({ src, title, category, link, onPreview, stats }: Portfol
         <div>
           <div className="flex items-center justify-between mb-1">
             <span className="text-brand-blue text-[10px] font-bold uppercase tracking-[0.15em]">{category}</span>
-            <ExternalLink size={11} className="text-text-secondary/40 group-hover:text-brand-blue transition-colors shrink-0" />
           </div>
-          <h3 className="text-white text-sm font-bold tracking-tight group-hover:text-brand-blue transition-colors line-clamp-1">{title}</h3>
+          <h3 className="text-white text-sm font-bold tracking-tight group-hover:text-brand-blue transition-colors line-clamp-1 mb-1.5">{title}</h3>
+          {description && (
+            <p className="text-xs text-text-secondary line-clamp-2 leading-relaxed mb-3 font-light">{description}</p>
+          )}
         </div>
 
         {stats && (
@@ -1570,11 +2172,32 @@ const PortfolioItem = ({ src, title, category, link, onPreview, stats }: Portfol
             </div>
           </div>
         )}
+
+        {/* CTA Buttons - Live Demo and GitHub Repo */}
+        {liveDemo && (
+          <div className="flex items-center gap-2.5 mt-2 pt-1 border-t border-white/5">
+            <a 
+              href={liveDemo !== '#' ? liveDemo : undefined}
+              target={liveDemo !== '#' ? "_blank" : undefined}
+              rel="noopener noreferrer"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (liveDemo === '#') {
+                  onPreview(src);
+                }
+              }}
+              className="flex-grow inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-brand-blue/10 border border-brand-blue/30 text-brand-blue hover:bg-brand-blue hover:text-white transition-all text-[11px] font-bold font-mono tracking-wider active:scale-95 cursor-pointer"
+            >
+              <ExternalLink size={10} />
+              <span>{lang === 'en' ? 'VIEW' : 'দেখুন'}</span>
+            </a>
+          </div>
+        )}
       </div>
 
       {/* Futuristic Ambient Glow on hover */}
       <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10 bg-brand-blue/5 blur-xl scale-[1.02]" />
-    </motion.div>
+    </div>
   );
 };
 
@@ -1585,27 +2208,69 @@ const Portfolio = () => {
 
   const works = [
     { 
-      src: 'https://i.ibb.co/gMjFRhVQ/IMG-20260418-WA0086.webp', 
-      title: lang === 'en' ? 'Futuristic Visuals' : 'ফিউচারিস্টিক ভিজ্যুয়াল', 
-      category: lang === 'en' ? 'Poster Design' : 'পোস্টার ডিজাইন',
-      type: 'design',
-      link: 'https://i.ibb.co/gMjFRhVQ/IMG-20260418-WA0086.webp',
+      src: 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?q=80&w=800&auto=format&fit=crop', 
+      title: lang === 'en' ? 'Personal Portfolio Website' : 'ব্যক্তিগত পোর্টফোলিও ওয়েবসাইট', 
+      category: lang === 'en' ? 'Development' : 'ডেভেলপমেন্ট',
+      type: 'development',
+      description: lang === 'en' 
+        ? 'A premium, responsive portfolio with smooth scrolling, dual language support, and interactive glass effects.' 
+        : 'স্মুথ স্ক্রোলিং, ডুয়াল ল্যাঙ্গুয়েজ সাপোর্ট এবং ইন্টারঅ্যাক্টিভ গ্লাস এফেক্টস সমৃদ্ধ একটি প্রিমিয়াম পোর্টফোলিও ওয়েবসাইট।',
+      liveDemo: 'https://sauvikdev.in',
+      githubUrl: 'https://github.com/sauvikcode/portfolio',
       stats: {
-        techStack: 'Photoshop, Cinema 4D',
-        clientType: lang === 'en' ? 'Solo Creator' : 'একক ক্রিয়েটর',
-        impactScore: lang === 'en' ? '92% engagement' : '৯২% এনগেজমেন্ট'
+        techStack: 'React, Tailwind CSS',
+        clientType: lang === 'en' ? 'Personal Portfolio' : 'ব্যক্তিগত পোর্টফোলিও',
+        impactScore: lang === 'en' ? '100% Speed Opt' : '১০০% স্পিড অপ্টিমাইজড'
       }
     },
     { 
-      src: 'https://i.ibb.co/xqYtYkBV/file-00000000c68c72089350aae68459d876.png', 
-      title: lang === 'en' ? 'Web Experience' : 'ওয়েব এক্সপেরিয়েন্স', 
+      src: 'https://images.unsplash.com/photo-1675557009875-436fec96a1a8?auto=format&fit=crop&q=80&w=800', 
+      title: lang === 'en' ? 'AI Chatbot Project' : 'এআই চ্যাটবট প্রোজেক্ট', 
       category: lang === 'en' ? 'Development' : 'ডেভেলপমেন্ট',
       type: 'development',
-      link: 'https://i.ibb.co/xqYtYkBV/file-00000000c68c72089350aae68459d876.png',
+      customThumbnail: <ChatbotMockup lang={lang} />,
+      description: lang === 'en' 
+        ? 'A high-performance intelligent chat interface leveraging the modern Google Gemini API for real-time stream responses.' 
+        : 'রিয়েল-টাইম স্ট্রিম উত্তরের জন্য আধুনিক গুগল জেমিনি এপিআই ব্যবহার করে তৈরি একটি অনন্য চ্যাটবট ইন্টারফেস প্রজেক্ট।',
+      liveDemo: '#',
+      githubUrl: 'https://github.com/sauvikcode/gemini-chatbot',
       stats: {
-        techStack: 'React, Tailwind CSS',
+        techStack: 'Google Gemini API, React',
+        clientType: lang === 'en' ? 'Open Source' : 'ওপেন সোর্স',
+        impactScore: lang === 'en' ? 'Contextual' : 'প্রাসঙ্গিকতা ১০০%'
+      }
+    },
+    { 
+      src: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=800&auto=format&fit=crop', 
+      title: lang === 'en' ? 'Landing Page Design' : 'ল্যান্ডিং পেজ ডিজাইন', 
+      category: lang === 'en' ? 'Design' : 'ডিজাইন',
+      type: 'design',
+      description: lang === 'en' 
+        ? 'Dynamic conversion-focused creative landing showcases featuring sleek typography, visual grid styling, and high appeal.' 
+        : 'চমৎকার টাইপোগ্রাফি ও লেআউট গ্রিড সহ সর্বাধিক রূপান্তর (Conversion) অর্জনের উপযোগী কাস্টম ক্রিয়েটিভ ল্যান্ডিং পেজ।',
+      liveDemo: '#',
+      githubUrl: 'https://github.com/sauvikcode/landing-designs',
+      stats: {
+        techStack: 'Figma, Tailwind CSS, JS',
         clientType: lang === 'en' ? 'Tech Startup' : 'টেক স্টার্টআপ',
-        impactScore: lang === 'en' ? '+45% speed opt' : '+৪৫% স্পিড অপ্ট'
+        impactScore: lang === 'en' ? '+45% conversion' : '+৪৫% রূপান্তর হার'
+      }
+    },
+
+    { 
+      src: 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?q=80&w=800&auto=format&fit=crop', 
+      title: lang === 'en' ? 'Freelance Client Website' : 'ফ্রিল্যান্স ক্লায়েন্ট ওয়েবসাইট', 
+      category: lang === 'en' ? 'Development' : 'ডেভেলপমেন্ট',
+      type: 'development',
+      description: lang === 'en' 
+        ? 'A production-grade bespoke commercial portal built to reinforce the local outreach of small business projects.' 
+        : 'স্থানীয় বা ছোট ব্যবসায়ের প্রচার এবং ব্র্যান্ড ভ্যালু বাড়ানোর জন্য তৈরি একটি কাস্টম প্রোডাকশন-গ্রেড বাণিজ্যিক পোর্টাল।',
+      liveDemo: '#',
+      githubUrl: 'https://github.com/sauvikcode/client-platform',
+      stats: {
+        techStack: 'HTML, CSS, JS, Glassmorphism',
+        clientType: lang === 'en' ? 'SME Business' : 'ছোট ও মাঝারি ব্যবসা',
+        impactScore: lang === 'en' ? '100% Mobile Ready' : '১০০% মোবাইল রেডি'
       }
     },
     { 
@@ -1613,23 +2278,15 @@ const Portfolio = () => {
       title: lang === 'en' ? 'Cinematic Motion' : 'সিনেমাটিক মোশন', 
       category: lang === 'en' ? 'Video Edit' : 'ভিডিও এডিটিং',
       type: 'video_edit',
-      link: 'https://i.ibb.co/mFzb4mGw/IMG-20260417-WA0030.webp',
+      description: lang === 'en' 
+        ? 'High impact promotional visual editing featuring kinetic sync, frame grade, and detailed visual and audio effects.' 
+        : 'কাইনেটিক সিঙ্ক, ফ্রেম কালার গ্রেড এবং উন্নত অডিও-ভিজ্যুয়াল এফেক্টস সমৃদ্ধ একটি চমৎকার সিনেমাটিক প্রোমোশনাল এডিটিং।',
+      liveDemo: '#',
+      githubUrl: 'https://github.com/sauvikcode/cinematic-motion',
       stats: {
-        techStack: 'After Effects, Premiere',
+        techStack: 'After Effects, Premiere Pro',
         clientType: lang === 'en' ? 'Media Agency' : 'মিডিয়া এজেন্সি',
         impactScore: lang === 'en' ? '120K+ views' : '১২০কে+ ভিউস'
-      }
-    },
-    { 
-      src: 'https://i.ibb.co/G31ptxN6/IMG-20260422-WA0006.webp', 
-      title: lang === 'en' ? 'Cyberpunk Branding' : 'সাইবারপাঙ্ক ব্র্যান্ডিং', 
-      category: lang === 'en' ? 'Poster Design' : 'পোস্টার ডিজাইন',
-      type: 'design',
-      link: 'https://i.ibb.co/G31ptxN6/IMG-20260422-WA0006.webp',
-      stats: {
-        techStack: 'Illustrator, Figma',
-        clientType: lang === 'en' ? 'Web3 Venture' : 'ওয়েব৩ ভেঞ্চার',
-        impactScore: lang === 'en' ? '100% feedback' : '১০০% ফিডব্যাক'
       }
     },
     { 
@@ -1637,23 +2294,15 @@ const Portfolio = () => {
       title: lang === 'en' ? 'Promo & Reel FX' : 'প্রোমো ও রিল এফেক্টস', 
       category: lang === 'en' ? 'Video Edit' : 'ভিডিও এডিটিং',
       type: 'video_edit',
-      link: 'https://i.ibb.co/twDjxY3Q/IMG-20260422-WA0000.webp',
+      description: lang === 'en' 
+        ? 'Short vertical promo Reels formatted for optimal user retention and fast visual hook on modern social networks.' 
+        : 'ইউটিউব শর্টস বা রিলসের উপযোগী এডিটিং যা প্রথম মুহূর্তেই দর্শকদের আকর্ষন করতে পারবে এবং রিটেনশন বৃদ্ধি করবে।',
+      liveDemo: '#',
+      githubUrl: 'https://github.com/sauvikcode/reel-fx',
       stats: {
         techStack: 'Ae, CapCut Pro',
         clientType: lang === 'en' ? 'YouTube Creator' : 'ইউটিউব ক্রিয়েটর',
         impactScore: lang === 'en' ? '+80% retention' : '+৮০% রিটেনশন'
-      }
-    },
-    { 
-      src: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=800&auto=format&fit=crop', 
-      title: lang === 'en' ? 'Interactive Web App' : 'ইন্টারেক্টিভ ওয়েব অ্যাপ', 
-      category: lang === 'en' ? 'Development' : 'ডেভেলপমেন্ট',
-      type: 'development',
-      link: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=800&auto=format&fit=crop',
-      stats: {
-        techStack: 'Python, FastAPI, HTML',
-        clientType: lang === 'en' ? 'SaaS Platform' : 'সাস প্লাটফর্ম',
-        impactScore: lang === 'en' ? '99.9% uptime' : '৯৯.৯% আপটাইম'
       }
     }
   ];
@@ -1722,22 +2371,47 @@ const Portfolio = () => {
           className="grid sm:grid-cols-2 md:grid-cols-3 gap-6"
         >
           <AnimatePresence mode="popLayout">
-            {filteredWorks.map((work) => (
+            {filteredWorks.map((work, index) => (
               <motion.div
                 layout
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.3 }}
+                initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                animate={{ 
+                  opacity: 1, 
+                  scale: 1, 
+                  y: 0,
+                  transition: {
+                    type: 'spring',
+                    stiffness: 140,
+                    damping: 18,
+                    delay: index * 0.05
+                  }
+                }}
+                exit={{ 
+                  opacity: 0, 
+                  scale: 0.8, 
+                  y: 20,
+                  transition: { 
+                    duration: 0.2
+                  } 
+                }}
+                transition={{ 
+                  layout: { 
+                    type: 'spring', 
+                    stiffness: 220, 
+                    damping: 28 
+                  } 
+                }}
                 key={work.src}
               >
                 <PortfolioItem 
                   src={work.src} 
                   title={work.title} 
                   category={work.category} 
-                  link={work.link}
+                  description={work.description}
+                  liveDemo={work.liveDemo}
                   onPreview={setPreviewImage} 
                   stats={work.stats}
+                  customThumbnail={work.customThumbnail}
                 />
               </motion.div>
             ))}
@@ -1762,18 +2436,26 @@ const Portfolio = () => {
               className="relative max-w-4xl max-h-[90vh] overflow-hidden rounded-xl border border-white/10"
               onClick={(e) => e.stopPropagation()}
             >
-              <img 
-                src={previewImage} 
-                alt="Preview" 
-                className="w-full h-full object-contain"
-                referrerPolicy="no-referrer"
-              />
-              <button 
-                className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 p-2 rounded-full text-white transition-colors"
-                onClick={() => setPreviewImage(null)}
-              >
-                <X size={24} />
-              </button>
+              {previewImage === 'https://images.unsplash.com/photo-1675557009875-436fec96a1a8?auto=format&fit=crop&q=80&w=800' ? (
+                <InteractiveChatbot lang={lang} onClose={() => setPreviewImage(null)} />
+              ) : previewImage === 'https://images.unsplash.com/photo-1504608524841-42fe6f032b4b?auto=format&fit=crop&q=80&w=800' ? (
+                <InteractiveWeather lang={lang} onClose={() => setPreviewImage(null)} />
+              ) : (
+                <>
+                  <img 
+                    src={previewImage} 
+                    alt="Preview" 
+                    className="w-full h-full object-contain"
+                    referrerPolicy="no-referrer"
+                  />
+                  <button 
+                    className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 p-2 rounded-full text-white transition-colors"
+                    onClick={() => setPreviewImage(null)}
+                  >
+                    <X size={24} />
+                  </button>
+                </>
+              )}
             </motion.div>
           </motion.div>
         )}
@@ -1866,6 +2548,7 @@ const WorkGallery = () => {
                         alt={`${cat.title} ${i + 1}`} 
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                         referrerPolicy="no-referrer"
+                        loading="lazy"
                       />
                     ) : (
                       <>
@@ -2008,7 +2691,13 @@ const FAQ = () => {
       {/* Absolute ambient lights behind FAQ */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-brand-blue/5 blur-[120px] rounded-full pointer-events-none" />
       
-      <div className="max-w-4xl mx-auto px-6 relative z-10 text-center">
+      <motion.div 
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-100px" }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        className="max-w-4xl mx-auto px-6 relative z-10 text-center"
+      >
         <span className="text-brand-blue font-bold text-xs tracking-[0.2em] uppercase mb-4 block">
           {t('faq_subtitle')}
         </span>
@@ -2065,14 +2754,53 @@ const FAQ = () => {
             );
           })}
         </div>
-      </div>
+      </motion.div>
     </section>
   );
 };
 
+// AskSauvikAI is now imported from src/components/AskSauvikAI.tsx
+
 const Contact = () => {
   const [formData, setFormData] = useState({ name: '', email: '', message: '' });
   const { t, lang } = useLanguage();
+  const { showToast } = useToast();
+
+  const handleSend = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!formData.name.trim() || !formData.email.trim() || !formData.message.trim()) {
+      e.preventDefault();
+      showToast(
+        lang === 'en' 
+          ? 'Please fill in all fields before sending.' 
+          : 'দয়া করে পাঠানোর আগে সব ক্ষেত্র পূরণ করুন।',
+        'error'
+      );
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email.trim())) {
+      e.preventDefault();
+      showToast(
+        lang === 'en'
+          ? 'Please enter a valid email address.'
+          : 'দয়া করে একটি সঠিক ইমেল ঠিকানা প্রবেশ করান।',
+        'error'
+      );
+      return;
+    }
+
+    showToast(
+      lang === 'en'
+        ? 'Draft prepared! Opening your mail application...'
+        : 'খসড়া প্রস্তুত! আপনার ইমেল অ্যাপ্লিকেশন খোলা হচ্ছে...',
+      'success'
+    );
+
+    setTimeout(() => {
+      setFormData({ name: '', email: '', message: '' });
+    }, 800);
+  };
 
   return (
     <section id="contact" className="py-24 bg-app-bg">
@@ -2160,6 +2888,7 @@ const Contact = () => {
             <div className="pt-4">
               <a 
                 href={`mailto:sauvikd68@gmail.com?subject=Portfolio Inquiry from sauvikdev.in&body=Hi Sauvik,%0D%0A%0D%0AMy Name: ${formData.name}%0D%0AMy Email: ${formData.email}%0D%0A%0D%0AMessage:%0D%0A${formData.message}`}
+                onClick={handleSend}
                 className="w-full inline-flex items-center justify-center bg-gradient-to-r from-brand-blue to-brand-purple text-white font-bold py-4 rounded-lg transition-all shadow-lg shadow-brand-blue/20 active:scale-95 text-xs tracking-[0.2em]"
               >
                 {lang === 'en' ? 'SEND MESSAGE VIA GMAIL' : 'জিমেইলের মাধ্যমে মেসেজ পাঠান'}
@@ -2179,6 +2908,35 @@ const Footer = () => {
   const { lang } = useLanguage();
   return (
     <footer className="py-12 bg-app-bg border-t border-glass-border text-center px-6">
+      <div className="flex justify-center items-center gap-4 mb-6">
+        <a 
+          href="https://github.com/sauvikdev" 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="w-10 h-10 rounded-full border border-glass-border flex items-center justify-center text-white/70 hover:text-white hover:border-white/40 hover:bg-white/10 transition-all duration-300"
+          aria-label="GitHub"
+        >
+          <Github size={18} />
+        </a>
+        <a 
+          href="https://www.linkedin.com/in/sauvik-das-05029b3bb?utm_source=share_via&utm_content=profile&utm_medium=member_android" 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="w-10 h-10 rounded-full border border-glass-border flex items-center justify-center text-white/70 hover:text-[#0077b5] hover:border-[#0077b5]/40 hover:bg-[#0077b5]/10 transition-all duration-300"
+          aria-label="LinkedIn"
+        >
+          <Linkedin size={18} />
+        </a>
+        <a 
+          href="https://instagram.com/sauvikdev.in" 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="w-10 h-10 rounded-full border border-glass-border flex items-center justify-center text-white/70 hover:text-[#e1306c] hover:border-[#e1306c]/40 hover:bg-[#e1306c]/10 transition-all duration-300"
+          aria-label="Instagram"
+        >
+          <Instagram size={18} />
+        </a>
+      </div>
       <div className="text-gray-500 text-sm font-mono uppercase tracking-widest">
         {lang === 'en' ? '© 2026 Sauvik Das Portfolio. All rights reserved.' : '© २०२৬ সৌভিক দাস পোর্টফোলিও। সর্বস্বত্ব সংরক্ষিত।'}
       </div>
@@ -2263,6 +3021,9 @@ function PortfolioApp() {
       <GlowingDivider />
       <FAQ />
       <GlowingDivider />
+      <AskSauvikAI />
+      <FloatingContact />
+      <GlowingDivider />
       <Contact />
       <Footer />
 
@@ -2321,7 +3082,9 @@ function PortfolioApp() {
 export default function App() {
   return (
     <LanguageProvider>
-      <PortfolioApp />
+      <ToastProvider>
+        <PortfolioApp />
+      </ToastProvider>
     </LanguageProvider>
   );
 }

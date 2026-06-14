@@ -1,0 +1,48 @@
+{
+  "entities": {
+    "Message": {
+      "title": "Visitor Message",
+      "description": "Visitor inquiries and feedback submitted via the Ask Sauvik AI interface",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The custom name specified by the user"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Valid email address of the visitor"
+        },
+        "message": {
+          "type": "string",
+          "description": "Detailed text content of the visitor inquiry"
+        },
+        "timestamp": {
+          "type": "object",
+          "description": "Firestore server timestamp of when the entry was submitted"
+        },
+        "sourceWebsite": {
+          "type": "string",
+          "description": "Identifier for origin of submission (e.g. sauvikdev.in)"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["read", "unread"],
+          "description": "Read status of client inquiry in the admin portal"
+        },
+        "browserInfo": {
+          "type": "string",
+          "description": "Visitor device client User-Agent header"
+        }
+      },
+      "required": ["name", "email", "message", "sourceWebsite", "status"]
+    }
+  },
+  "firestore": {
+    "/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Collection of visitor inquiry submissions"
+    }
+  }
+}

@@ -2,5 +2,7 @@
   "name": "Sauvik Das Portfolio",
   "description": "A premium, futuristic personal portfolio website for Sauvik Das, featuring glassmorphism, glowing effects, and smooth animations.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
