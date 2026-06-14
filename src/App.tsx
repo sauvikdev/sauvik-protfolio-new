@@ -873,7 +873,7 @@ const CVModal = ({ isOpen, onClose, isDark }: { isOpen: boolean; onClose: () => 
 };
 
 const Hero = ({ onOpenCV }: { onOpenCV: () => void }) => {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [text, setText] = useState('');
   const fullText = t('hero_tagline');
   
@@ -890,7 +890,7 @@ const Hero = ({ onOpenCV }: { onOpenCV: () => void }) => {
   }, [fullText]);
 
   return (
-    <section id="home" className="relative min-h-screen flex flex-col items-center justify-start overflow-hidden bg-app-bg pt-44 lg:pt-52 pb-24">
+    <section id="home" className="relative min-h-screen flex flex-col items-center justify-start overflow-hidden bg-app-bg pt-44 lg:pt-52 pb-36 sm:pb-44">
       {/* Animated Gradient Background - Kept but colors adjusted */}
       <div className="absolute inset-0 z-0">
         <div className="absolute top-1/4 -left-1/4 w-1/2 h-1/2 bg-brand-blue/10 rounded-full blur-[120px] animate-pulse" />
@@ -902,7 +902,7 @@ const Hero = ({ onOpenCV }: { onOpenCV: () => void }) => {
         <div className="stars h-full w-full" />
       </div>
 
-      <div className="relative z-10 text-center px-6 w-full max-w-7xl mx-auto">
+      <div className="relative z-10 text-center px-6 w-full max-w-7xl mx-auto pb-12 sm:pb-16">
         {/* Modern Full-Width Hero Cover Banner Section */}
         <motion.div
           initial={{ opacity: 0, y: -40 }}
@@ -1073,15 +1073,61 @@ const Hero = ({ onOpenCV }: { onOpenCV: () => void }) => {
         </motion.div>
       </div>
 
-      <motion.div 
-        animate={{ y: [0, 10, 0] }}
-        transition={{ repeat: Infinity, duration: 2 }}
-        className="absolute bottom-10 left-1/2 -translate-x-1/2 text-white/50"
-      >
-        <div className="w-6 h-10 border-2 border-white/20 rounded-full flex justify-center p-1">
-          <div className="w-1 h-2 bg-white/50 rounded-full" />
-        </div>
-      </motion.div>
+      {/* Visual Indicator with Arrow prompting to explore AI Assistant */}
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2.5 z-30 w-full max-w-xs sm:max-w-md">
+        <motion.button 
+          onClick={() => {
+            const aiSection = document.getElementById('ask-ai');
+            if (aiSection) {
+              aiSection.scrollIntoView({ behavior: 'smooth' });
+            }
+          }}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8 }}
+          className="group flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 bg-black/85 hover:bg-black border border-brand-blue/30 hover:border-brand-blue/60 backdrop-blur-md rounded-full text-[10px] sm:text-xs font-mono tracking-wider text-white/90 hover:text-white transition-all shadow-[0_0_15px_rgba(0,210,255,0.1)] hover:shadow-[0_0_25px_rgba(0,210,255,0.25)] cursor-pointer active:scale-95"
+        >
+          <span className="flex h-2 w-2 relative">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-blue opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-blue"></span>
+          </span>
+          <span className="font-semibold">
+            {lang === 'en' ? '🤖 AI ASSISTANT AVAILABLE BELOW' : '🤖 এআই অ্যাসিস্ট্যান্ট নিচে উপলব্ধ রয়েছে'}
+          </span>
+          <motion.span
+            animate={{ y: [0, 4, 0] }}
+            transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+            className="inline-block transform rotate-90 ml-1 text-brand-blue font-bold"
+          >
+            →
+          </motion.span>
+        </motion.button>
+
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.6 }}
+          transition={{ delay: 1 }}
+          className="text-[9px] sm:text-[10px] font-mono text-white/40 group-hover:text-white/60 tracking-widest text-center"
+        >
+          {lang === 'en' ? '👇 Scroll down or click to explore' : '👇 স্ক্রোল করুন অথবা অন্বেষণ করতে ক্লিক করুন'}
+        </motion.div>
+
+        <motion.div 
+          animate={{ y: [0, 6, 0] }}
+          transition={{ repeat: Infinity, duration: 2 }}
+          className="text-white/20 hover:text-white/40 transition-colors cursor-pointer"
+          onClick={() => {
+            const aiSection = document.getElementById('ask-ai');
+            if (aiSection) {
+              aiSection.scrollIntoView({ behavior: 'smooth' });
+            }
+          }}
+        >
+          <div className="w-5 h-8 border border-white/20 rounded-full flex justify-center p-1">
+            <div className="w-0.5 h-1.5 bg-white/40 rounded-full animate-bounce" />
+          </div>
+        </motion.div>
+      </div>
     </section>
   );
 };
@@ -1535,6 +1581,7 @@ const InteractiveChatbot = ({ lang, onClose }: { lang: 'en' | 'bn'; onClose: () 
   const [inputVal, setInputVal] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const isInitialMount = useRef(true);
 
   const promptPills = lang === 'en' ? [
     { text: "Who is Sauvik Das?", key: "who" },
@@ -1549,6 +1596,10 @@ const InteractiveChatbot = ({ lang, onClose }: { lang: 'en' | 'bn'; onClose: () 
   ];
 
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     if (scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: 'smooth' });
     }
@@ -2956,6 +3007,17 @@ function PortfolioApp() {
   const [showBackToTop, setShowBackToTop] = useState(false);
 
   useEffect(() => {
+    // 1. Force the page to scroll to the top immediately upon initial load
+    if (window.history.scrollRestoration) {
+      window.history.scrollRestoration = 'manual';
+    }
+    window.scrollTo(0, 0);
+    
+    // Backup micro-timeout to ensure we stay at the top after layout shifts settle
+    const scrollTimeout = setTimeout(() => {
+      window.scrollTo(0, 0);
+    }, 100);
+
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'light') {
       setIsDark(false);
@@ -2970,7 +3032,10 @@ function PortfolioApp() {
       }
     };
     window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      clearTimeout(scrollTimeout);
+    };
   }, []);
 
   const scrollToTop = () => {

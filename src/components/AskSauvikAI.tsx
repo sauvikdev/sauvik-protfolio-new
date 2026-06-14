@@ -65,6 +65,7 @@ export const AskSauvikAI = () => {
   const [isTyping, setIsTyping] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const suggestionsScrollRef = useRef<HTMLDivElement>(null);
+  const isInitialMount = useRef(true);
   
   // Admin Overlay States
   const [showAdminLogin, setShowAdminLogin] = useState(false);
@@ -387,6 +388,10 @@ export const AskSauvikAI = () => {
   };
 
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
