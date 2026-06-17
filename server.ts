@@ -15,22 +15,110 @@ const firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, 'utf8'));
 
 // Initialize Gemini AI Client
 let ai: GoogleGenAI | null = null;
-if (process.env.GEMINI_API_KEY) {
-  try {
+
+function getGoogleGenAIClient(): GoogleGenAI {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY environment variable is required');
+  }
+  if (!ai) {
     ai = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY,
+      apiKey: apiKey,
       httpOptions: {
         headers: {
           'User-Agent': 'aistudio-build',
         }
       }
     });
-    console.log('Gemini AI initialized successfully on server.');
-  } catch (err) {
-    console.error('Gemini AI initialization failed on server:', err);
   }
-} else {
-  console.warn('GEMINI_API_KEY environment variable is missing.');
+  return ai;
+}
+
+// Resilient helper to handle content generation with automated retries and fallback models
+async function generateContentWithRetryAndFallback(options: {
+  contents: any;
+  config?: any;
+  primaryModel?: string;
+}): Promise<any> {
+  const primaryModel = options.primaryModel || "gemini-3.5-flash";
+  const backupModels = ["gemini-3.1-flash-lite", "gemini-flash-latest"];
+  const allModels = [primaryModel, ...backupModels];
+  
+  const maxRetries = 2; // Reduced to 2 retries to speed up fallback transitions
+  let lastError: any = null;
+
+  console.log(`[SauvikAI Engine] Initiating content generation API. Requests logged.`);
+
+  for (const model of allModels) {
+    console.log(`[SauvikAI Engine] Processing request with model choice: ${model}`);
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      let timeoutId: any = null;
+      try {
+        console.log(`[SauvikAI Engine] Sending API request -> [Model: ${model}] [Attempt: ${attempt}/${maxRetries}]`);
+        
+        const client = getGoogleGenAIClient();
+        
+        // Dynamic timeout: 12s for primary model to keep it fast, 10s for backup models to prevent hanging
+        const timeoutMs = model === primaryModel ? 12000 : 10000;
+        
+        const apiCallPromise = client.models.generateContent({
+          model: model,
+          contents: options.contents,
+          config: options.config || {}
+        });
+
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error(`Timeout: Request took longer than ${timeoutMs}ms`)), timeoutMs);
+        });
+
+        const response = await Promise.race([apiCallPromise, timeoutPromise]);
+        
+        if (timeoutId) clearTimeout(timeoutId);
+        
+        console.log(`[SauvikAI Engine] Success! API responded on [Model: ${model}] [Attempt: ${attempt}/${maxRetries}].`);
+        return response;
+
+      } catch (err: any) {
+        if (timeoutId) clearTimeout(timeoutId);
+        
+        lastError = err;
+        const errMsg = err.message || '';
+        const errStr = typeof err === 'object' ? JSON.stringify(err) : String(err);
+        
+        const isRateLimit = errMsg.includes('429') || errMsg.toLowerCase().includes('quota') || errMsg.toLowerCase().includes('rate limit') || errStr.includes('429');
+        const isTimeout = errMsg.toLowerCase().includes('timeout') || errMsg.toLowerCase().includes('deadline') || errMsg.toLowerCase().includes('took longer than');
+        const isAuthError = errMsg.includes('401') || errMsg.includes('403') || errMsg.toLowerCase().includes('api key') || errMsg.toLowerCase().includes('unauthorized');
+        const isHighDemand = errMsg.includes('503') || errMsg.toLowerCase().includes('high demand') || errMsg.toLowerCase().includes('spikes in demand') || errMsg.toLowerCase().includes('unavailable') || errStr.includes('503') || errStr.toLowerCase().includes('unavailable');
+
+        console.error(`[SauvikAI Engine] Connection failure on [Model: ${model}] - Attempt ${attempt}/${maxRetries}:`, {
+          error: errMsg,
+          isRateLimit,
+          isTimeout,
+          isAuthError,
+          isHighDemand,
+          fullErrorDetails: errStr
+        });
+
+        // Fail-Fast: Switch models immediately if the current model is overloaded (503), rate-limited (429), or timing out.
+        // No point retrying search or chat content on a model that is timing out. Move to the next model instantly.
+        if (isHighDemand || isRateLimit || isTimeout) {
+          console.warn(`[SauvikAI Engine] Model ${model} is overloaded, rate-limited, or timing out. Activating intelligent fail-fast to skip retries and swap models.`);
+          break; // skip retry and try next model
+        }
+
+        if (attempt < maxRetries) {
+          const delayMs = Math.min(1000 * Math.pow(2, attempt), 4000);
+          console.log(`[SauvikAI Engine] Waiting ${delayMs}ms before retrying...`);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+      }
+    }
+    
+    console.warn(`[SauvikAI Engine] Model ${model} failed all retry attempts or triggered intelligent fail-fast. Automatically switching to alternative model.`);
+  }
+
+  throw new Error(`[SauvikAI Engine] All models and retry mechanisms failed. Last error: ${lastError?.message || 'Unknown'}`);
 }
 
 const app = express();
@@ -250,10 +338,6 @@ I am configured to process, think, and respond to your messages instantly (withi
       return res.status(200).json({ success: true, text: isBengali ? bnSpeedText : enSpeedText });
     }
 
-    if (!ai) {
-      return res.status(503).json({ success: false, error: 'AI Assistant has offline status.' });
-    }
-
     const contents: any[] = [];
     if (history && Array.isArray(history)) {
       history.slice(-10).forEach((msg: any) => {
@@ -268,8 +352,7 @@ I am configured to process, think, and respond to your messages instantly (withi
       parts: [{ text: message }]
     });
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+    const response = await generateContentWithRetryAndFallback({
       contents: contents,
       config: {
         systemInstruction: SAUVIK_SYSTEM_INSTRUCTIONS,
@@ -289,9 +372,6 @@ app.post('/api/ai/calculate-cost', async (req, res) => {
     const { websiteType, features, customRequirements, lang, email } = req.body;
     if (!websiteType || !features) {
       return res.status(400).json({ success: false, error: 'websiteType and features list are required' });
-    }
-    if (!ai) {
-      return res.status(503).json({ success: false, error: 'AI cost calculator is offline.' });
     }
 
     const calcPrompt = `
@@ -318,8 +398,7 @@ Return the response strictly as a JSON object with this shape:
 }
 `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+    const response = await generateContentWithRetryAndFallback({
       contents: calcPrompt,
       config: {
         responseMimeType: "application/json",
@@ -360,9 +439,6 @@ app.post('/api/ai/generate-proposal', async (req, res) => {
     if (!projectName || !objectives) {
       return res.status(400).json({ success: false, error: 'projectName and objectives are required' });
     }
-    if (!ai) {
-      return res.status(503).json({ success: false, error: 'AI proposal generator is offline.' });
-    }
 
     const proposalPrompt = `
 Draft a comprehensive, highly persuasive, professional freelance proposal matching Sauvik Das's brand, tone, and packages.
@@ -386,8 +462,7 @@ The proposal must contain the following sections clearly:
 Provide a highly formatted, polished response in beautiful Markdown.
 `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+    const response = await generateContentWithRetryAndFallback({
       contents: proposalPrompt
     });
 
@@ -413,9 +488,6 @@ app.post('/api/ai/generate-content', async (req, res) => {
     if (!contentType || !mainTopics) {
       return res.status(400).json({ success: false, error: 'contentType and mainTopics are required' });
     }
-    if (!ai) {
-      return res.status(503).json({ success: false, error: 'AI content copywriter is offline.' });
-    }
 
     const contentPrompt = `
 You are an expert copywriter and marketing assistant. Generate engaging content based on the following:
@@ -428,8 +500,7 @@ You are an expert copywriter and marketing assistant. Generate engaging content 
 Provide appropriate formatting, hooks, emojis, and hashtags according to platform guidelines. Respond in beautiful Markdown.
 `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+    const response = await generateContentWithRetryAndFallback({
       contents: contentPrompt
     });
 
@@ -446,9 +517,6 @@ app.post('/api/ai/recommend-service', async (req, res) => {
     const { userRequirements, industry, budgetRange, lang, email } = req.body;
     if (!userRequirements) {
       return res.status(400).json({ success: false, error: 'userRequirements are required' });
-    }
-    if (!ai) {
-      return res.status(503).json({ success: false, error: 'AI service recommendation is offline.' });
     }
 
     const recommendationPrompt = `
@@ -475,8 +543,7 @@ Provide your response strictly as a JSON object with this shape:
 }
 `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+    const response = await generateContentWithRetryAndFallback({
       contents: recommendationPrompt,
       config: {
         responseMimeType: "application/json",
@@ -517,9 +584,6 @@ app.post('/api/ai/build-resume', async (req, res) => {
     if (!fullName || !targetJob) {
       return res.status(400).json({ success: false, error: 'fullName and targetJob are required' });
     }
-    if (!ai) {
-      return res.status(503).json({ success: false, error: 'AI Resume Builder is offline.' });
-    }
 
     const resumePrompt = `
 Generate a professional, high-impact resume based on:
@@ -540,8 +604,7 @@ Structure the output cleanly in beautiful markdown format appropriate for high-f
 6. Academic History & Certifications
 `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+    const response = await generateContentWithRetryAndFallback({
       contents: resumePrompt
     });
 

@@ -31,10 +31,12 @@ import {
   History,
   FileUp,
   XSquare,
-  VolumeX
+  VolumeX,
+  Download
 } from 'lucide-react';
 import { useLanguage } from '../App';
 import { useToast } from './Toast';
+import { jsPDF } from 'jspdf';
 
 // --- Types & Interfaces ---
 export interface ChatMessage {
@@ -106,7 +108,7 @@ const detectLanguage = (text: string): 'en' | 'bn' => {
 };
 
 // Comprehensive custom markdown & code block renderer
-const MessageContentRenderer: React.FC<{ text: string }> = ({ text }) => {
+const MessageContentRenderer: React.FC<{ text: string; isUser?: boolean; isDark?: boolean }> = ({ text, isUser = false, isDark = true }) => {
   const { showToast } = useToast();
   const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
 
@@ -140,13 +142,13 @@ const MessageContentRenderer: React.FC<{ text: string }> = ({ text }) => {
           const blockId = `block-${index}`;
 
           return (
-            <div key={index} className="my-4 rounded-xl border border-glass-border overflow-hidden bg-black/40 text-left font-mono text-xs max-w-full shadow-lg">
+            <div key={index} className="my-4 rounded-xl border border-glass-border overflow-hidden bg-[#0d0d14] text-left font-mono text-xs max-w-full shadow-lg">
               {/* Toolbar */}
-              <div className="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-white/5 to-white/0 border-b border-glass-border">
+              <div className="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-white/5 to-white/0 border-b border-white/10">
                 <span className="text-[10px] font-bold text-brand-blue uppercase tracking-widest">{language}</span>
                 <button
                   onClick={() => handleCopyCode(codeContent, blockId)}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-[10px] uppercase font-bold text-white/70 transition-all cursor-pointer border border-white/5 hover:border-brand-blue/30"
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-[10px] uppercase font-bold text-neutral-300 transition-all cursor-pointer border border-white/5 hover:border-brand-blue/30"
                 >
                   {copiedCodeId === blockId ? (
                     <>
@@ -155,13 +157,13 @@ const MessageContentRenderer: React.FC<{ text: string }> = ({ text }) => {
                     </>
                   ) : (
                     <>
-                      <Copy size={11} />
+                      <Copy size={11} className="text-neutral-400" />
                       <span>Copy</span>
                     </>
                   )}
                 </button>
               </div>
-              <pre className="p-4 overflow-x-auto select-text scrollbar-thin text-white/90 leading-normal max-w-full block">
+              <pre className="p-4 overflow-x-auto select-text scrollbar-thin text-neutral-200 leading-normal max-w-full block">
                 <code>{codeContent}</code>
               </pre>
             </div>
@@ -176,22 +178,51 @@ const MessageContentRenderer: React.FC<{ text: string }> = ({ text }) => {
             const headingContent = paragraphText.replace(/^#+\s*/, '');
             const sizes = ['text-2xl', 'text-xl', 'text-lg', 'text-base'];
             const size = sizes[Math.min(level - 1, 3)];
-            return <h4 className={`${size} font-bold text-[var(--text-primary)] my-3 mb-2 tracking-tight`}>{headingContent}</h4>;
+
+            // Adaptive heading color
+            let headingsClass = 'text-slate-900';
+            if (isUser) {
+              headingsClass = 'text-neutral-50';
+            } else if (isDark) {
+              headingsClass = 'text-neutral-100';
+            }
+
+            return <h4 className={`${size} font-bold my-3 mb-2 tracking-tight ${headingsClass}`}>{headingContent}</h4>;
           }
 
           // Format custom bold tokens `**bold**` -> tags
           const boldTokens = paragraphText.split(/(\*\*.*?\*\*)/g);
+
+          // Adaptive paragraph & bold style
+          let pClass = isDark ? 'text-neutral-200 font-light' : 'text-slate-800 font-normal';
+          let boldClass = isDark ? 'text-neutral-50 font-bold' : 'text-slate-950 font-bold';
+
+          if (isUser) {
+            pClass = 'text-neutral-100 font-light';
+            boldClass = 'text-neutral-50 font-extrabold';
+          }
+
           return (
-            <p className="whitespace-pre-line leading-relaxed text-sm text-[var(--text-primary)] font-light">
+            <p className={`whitespace-pre-line leading-relaxed text-sm ${pClass}`}>
               {boldTokens.map((btoken, bIdx) => {
                 if (btoken.startsWith('**') && btoken.endsWith('**')) {
-                  return <strong key={bIdx} className="font-semibold text-white">{btoken.slice(2, -2)}</strong>;
+                  return <strong key={bIdx} className={boldClass}>{btoken.slice(2, -2)}</strong>;
                 }
                 // Handle inline code `code` -> tags
                 const inlineCodeTokens = btoken.split(/(`.*?`)/g);
                 return inlineCodeTokens.map((icToken, icIdx) => {
                   if (icToken.startsWith('`') && icToken.endsWith('`')) {
-                    return <code key={icIdx} className="px-1.5 py-0.5 rounded bg-white/10 text-brand-blue text-[11px] font-mono border border-white/5">{icToken.slice(1, -1)}</code>;
+                    // Safe styling for inline code
+                    let codeBgBorderText = '';
+                    if (isUser) {
+                      codeBgBorderText = 'bg-black/30 border-white/10 text-neutral-100';
+                    } else if (isDark) {
+                      codeBgBorderText = 'bg-white/10 border-white/5 text-brand-blue';
+                    } else {
+                      codeBgBorderText = 'bg-slate-100 border-slate-200/50 text-indigo-700';
+                    }
+
+                    return <code key={icIdx} className={`px-1.5 py-0.5 rounded text-[11px] font-mono border ${codeBgBorderText}`}>{icToken.slice(1, -1)}</code>;
                   }
                   return icToken;
                 });
@@ -319,7 +350,9 @@ export const SauvikAISection = ({ isDark, toggleTheme }: SauvikAIProps) => {
       clear_history: 'Clear History',
       active_thread: 'Active Thread',
       copy_success: 'Copied!',
-      file_uploaded: 'File attached: '
+      file_uploaded: 'File attached: ',
+      download_conversation: 'Download PDF',
+      download_success: 'PDF downloaded successfully!'
     },
     bn: {
       section_title: 'SauvikAI ওয়ার্কস্পেস',
@@ -363,7 +396,9 @@ export const SauvikAISection = ({ isDark, toggleTheme }: SauvikAIProps) => {
       clear_history: 'হিস্টোরি পরিষ্কার করুন',
       active_thread: 'সক্রিয় চ্যাট',
       copy_success: 'কপি করা হয়েছে!',
-      file_uploaded: 'ফাইল সংযুক্ত করা হয়েছে: '
+      file_uploaded: 'ফাইল সংযুক্ত করা হয়েছে: ',
+      download_conversation: 'পিডিএফ ডাউনলোড করুন',
+      download_success: 'পিডিএফ সফলভাবে ডাউনলোড করা হয়েছে!'
     }
   };
 
@@ -578,29 +613,56 @@ export const SauvikAISection = ({ isDark, toggleTheme }: SauvikAIProps) => {
     saveThreadsToLocalStorage(updatedThreads);
     setIsGenerating(true);
 
-    // Call /api/ai/chatbot route
-    try {
-      const chatHistoryForAPI = updatedMessages.map(m => ({
-        sender: m.sender,
-        text: m.text
-      }));
+    // Call /api/ai/chatbot route with client-side retry loop and intelligent error recovery
+    let responseText = '';
+    let apiSuccess = false;
+    const clientMaxRetries = 3;
 
-      const res = await fetch('/api/ai/chatbot', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: apiPrompt,
-          history: chatHistoryForAPI
-        })
-      });
+    for (let clientAttempt = 1; clientAttempt <= clientMaxRetries; clientAttempt++) {
+      try {
+        console.log(`[Client Chatbot] Dispatching request - Attempt ${clientAttempt}/${clientMaxRetries}`);
+        const chatHistoryForAPI = updatedMessages.map(m => ({
+          sender: m.sender,
+          text: m.text
+        }));
 
-      if (!res.ok) {
-        throw new Error('API server returned error status code');
+        const res = await fetch('/api/ai/chatbot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: apiPrompt,
+            history: chatHistoryForAPI
+          })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `HTTP ${res.status}: ${res.statusText}`);
+        }
+
+        const data = await res.json();
+        if (data.success && data.text) {
+          responseText = data.text;
+          apiSuccess = true;
+          break; // Exit retry loop on success!
+        } else {
+          throw new Error(data.error || 'Server responded with success: false');
+        }
+      } catch (err: any) {
+        console.error(`[Client Chatbot] Request attempt ${clientAttempt} failed:`, err);
+        if (clientAttempt < clientMaxRetries) {
+          const delay = 1000 * clientAttempt;
+          console.log(`[Client Chatbot] Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          console.error(`[Client Chatbot] All ${clientMaxRetries} client-side retry attempts failed.`);
+        }
       }
+    }
 
-      const data = await res.json();
-      if (data.success && data.text) {
-        const censoredResponse = filterBrandNames(data.text);
+    try {
+      if (apiSuccess && responseText) {
+        const censoredResponse = filterBrandNames(responseText);
         
         const botMsg: ChatMessage = {
           id: `msg-bot-${Date.now()}`,
@@ -621,34 +683,32 @@ export const SauvikAISection = ({ isDark, toggleTheme }: SauvikAIProps) => {
         });
         saveThreadsToLocalStorage(postBotThreads);
       } else {
-        throw new Error(data.error || 'Unknown response anomaly');
+        // Fallback response mock for demo/offline setups ONLY after all retry attempts fail
+        const offlineIsBengali = selectedLangMode === 'bn' || (selectedLangMode === 'auto' && detected === 'bn');
+        const fallbackText = offlineIsBengali
+          ? `আমি অত্যন্ত দুঃখিত, এই মুহূর্তে ব্যাকএন্ড সার্ভারের সাথে যোগাযোগ করা যাচ্ছে না। কিন্তু আমি আপনাকে সাহায্য করার জন্য সবসময় প্রস্তুত। আপনি অনুগ্রহ করে মেইল করতে পারেন sauvikd68@gmail.com ঠিকানায়!`
+          : `I apologize, but my backend cloud gateway is temporarily experiencing high volumes. Please copy your query or reach out to Sauvik directly at sauvikd68@gmail.com. I'm always at your service!`;
+
+        const botMsg: ChatMessage = {
+          id: `msg-bot-err-${Date.now()}`,
+          sender: 'bot',
+          text: fallbackText,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+
+        const postBotThreads = updatedThreads.map(t => {
+          if (t.id === activeThreadId) {
+            return {
+              ...t,
+              messages: [...updatedMessages, botMsg]
+            };
+          }
+          return t;
+        });
+        saveThreadsToLocalStorage(postBotThreads);
       }
-    } catch (err: any) {
-      console.error('SauvikAI request error:', err);
-      
-      // Fallback response mock for demo/offline setups
-      const offlineIsBengali = selectedLangMode === 'bn' || (selectedLangMode === 'auto' && detected === 'bn');
-      const fallbackText = offlineIsBengali
-        ? `আমি অত্যন্ত দুঃখিত, এই মুহূর্তে ব্যাকএন্ড সার্ভারের সাথে যোগাযোগ করা যাচ্ছে না। কিন্তু আমি আপনাকে সাহায্য করার জন্য সবসময় প্রস্তুত। আপনি অনুগ্রহ করে মেইল করতে পারেন sauvikd68@gmail.com ঠিকানায়!`
-        : `I apologize, but my backend cloud gateway is temporarily experiencing high volumes. Please copy your query or reach out to Sauvik directly at sauvikd68@gmail.com. I'm always at your service!`;
-
-      const botMsg: ChatMessage = {
-        id: `msg-bot-err-${Date.now()}`,
-        sender: 'bot',
-        text: fallbackText,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-
-      const postBotThreads = updatedThreads.map(t => {
-        if (t.id === activeThreadId) {
-          return {
-            ...t,
-            messages: [...updatedMessages, botMsg]
-          };
-        }
-        return t;
-      });
-      saveThreadsToLocalStorage(postBotThreads);
+    } catch (innerErr) {
+      console.error('Failure saving state:', innerErr);
     } finally {
       setIsGenerating(false);
     }
@@ -677,6 +737,234 @@ export const SauvikAISection = ({ isDark, toggleTheme }: SauvikAIProps) => {
       // Set the threads and re-send utilizing user prompt
       setThreads(restThreads);
       handleSendMessage(lastUserMsg.text);
+    }
+  };
+
+  // --- Toggle language, persist preference in localStorage and update general app language context ---
+  const handleLangToggle = (newLang: 'en' | 'bn') => {
+    setLang(newLang);
+    setSelectedLangMode(newLang);
+    localStorage.setItem('portfolio_lang', newLang);
+    showToast(
+      newLang === 'bn'
+        ? 'বাংলা ভাষা নির্বাচন করা হয়েছে'
+        : 'English language selected',
+      'success'
+    );
+  };
+
+  // --- Download Current Conversation History ---
+  const handleDownloadConversation = () => {
+    if (!activeThread || !activeThread.messages || activeThread.messages.length === 0) {
+      showToast(lang === 'bn' ? 'ডাউনলোড করার মত কোনো মেসেজ নেই!' : 'No messages to download!', 'warning');
+      return;
+    }
+
+    const currentActiveLang: 'en' | 'bn' = selectedLangMode === 'auto'
+      ? (lang === 'bn' ? 'bn' : 'en')
+      : (selectedLangMode === 'bn' ? 'bn' : 'en');
+
+    const threadTitle = currentActiveLang === 'bn' ? activeThread.titleBn : activeThread.title;
+
+    // Check if there is any Bengali script in the messages or title.
+    // Standard PDF-14 fonts like Helvetica do not support Bengali Unicode glyphs natively.
+    // If Bengali is found, we fall back to a beautifully formatted Markdown download to prevent text corruption.
+    let hasBengali = /[\u0980-\u09FF]/.test(threadTitle);
+    if (!hasBengali) {
+      for (const m of activeThread.messages) {
+        if (/[\u0980-\u09FF]/.test(m.text || '')) {
+          hasBengali = true;
+          break;
+        }
+      }
+    }
+
+    if (hasBengali) {
+      // Elegant Markdown fallback for Bengali to support direct Unicode rendering perfectly.
+      let markdown = `# SauvikAI Conversation: ${threadTitle}\n`;
+      markdown += `*Date: ${activeThread.lastUpdated || new Date().toLocaleString()}*\n`;
+      markdown += `*Language: Bengali/Multi-language*\n\n`;
+      markdown += `---\n\n`;
+
+      activeThread.messages.forEach((m) => {
+        const senderName = m.sender === 'user' ? (currentActiveLang === 'bn' ? 'ব্যবহারকারী' : 'User') : 'SauvikAI';
+        markdown += `### 👤 **${senderName}** *(${m.timestamp})*\n\n`;
+        markdown += `${m.text}\n\n`;
+        markdown += `---\n\n`;
+      });
+
+      markdown += `*Downloaded from Sauvik Das's Portfolio (sauvikdev.in)*\n`;
+
+      try {
+        const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        
+        const safeTitle = threadTitle
+          .toLowerCase()
+          .replace(/[^\w\u0980-\u09FF\s-]/g, '')
+          .replace(/\s+/g, '-');
+        
+        link.setAttribute('download', `sauvikai-chat-${safeTitle || 'conversation'}.md`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        showToast(
+          lang === 'bn' 
+            ? 'বাংলা অক্ষরের নির্ভুল উপস্থাপনের জন্য ডকুমেণ্টটি মার্কডাউন (.md) ফাইল হিসেবে ডাউনলোড হয়েছে।' 
+            : 'Saved as Markdown to preserve Bengali text formatting correctly.', 
+          'success'
+        );
+      } catch (err) {
+        console.error('Error downloading conversation as md:', err);
+        showToast(lang === 'bn' ? 'ডাউনলোড করতে সমস্যা হয়েছে!' : 'Failed to download conversation.', 'error');
+      }
+      return;
+    }
+
+    // PDF generation for standard English conversations
+    try {
+      const doc = new jsPDF({
+        orientation: 'p',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margin = 20;
+      const contentWidth = pageWidth - (margin * 2);
+
+      let yPos = 20;
+
+      // Function to check and add new page
+      const checkPageBreak = (neededHeight: number) => {
+        if (yPos + neededHeight > pageHeight - margin) {
+          doc.addPage();
+          yPos = margin;
+          
+          doc.setDrawColor(226, 232, 240);
+          doc.setLineWidth(0.2);
+          doc.line(margin, margin - 4, pageWidth - margin, margin - 4);
+          
+          doc.setFont('Helvetica', 'normal');
+          doc.setFontSize(8);
+          doc.setTextColor(148, 163, 184);
+          doc.text(`SauvikAI Chat Log - Topic: ${threadTitle}`, margin, margin - 6);
+        }
+      };
+
+      // Title header banner
+      doc.setFillColor(15, 23, 42); // deep slate/black bg
+      doc.rect(margin, yPos, contentWidth, 26, 'F');
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.text('SauvikAI Conversation Transcript', margin + 8, yPos + 10);
+
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(156, 163, 175);
+      const dateStr = activeThread.lastUpdated || new Date().toLocaleString();
+      doc.text(`Date: ${dateStr}  |  Language: English  |  Platform: sauvikdev.in`, margin + 8, yPos + 18);
+
+      yPos += 36;
+
+      // Topic header section
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(51, 65, 85);
+      const titleLines = doc.splitTextToSize(`Topic: ${threadTitle}`, contentWidth);
+      titleLines.forEach((line: string) => {
+        checkPageBreak(8);
+        doc.text(line, margin, yPos);
+        yPos += 6;
+      });
+
+      yPos += 4;
+
+      // Thread messages
+      activeThread.messages.forEach((m) => {
+        const isUser = m.sender === 'user';
+        const senderLabel = isUser ? 'USER' : 'SAUVIKAI';
+
+        // Pre-split text to calculate exact block height
+        const splitText = doc.splitTextToSize(m.text || '', contentWidth - 14);
+        const textHeight = splitText.length * 5;
+        const blockHeight = textHeight + 14;
+
+        checkPageBreak(blockHeight);
+
+        // draw background box for each chat message
+        if (isUser) {
+          doc.setFillColor(248, 250, 252); // soft cool grey/blue
+          doc.setDrawColor(226, 232, 240);
+        } else {
+          doc.setFillColor(244, 244, 249); // clear tint violet
+          doc.setDrawColor(224, 224, 235);
+        }
+
+        doc.rect(margin, yPos, contentWidth, blockHeight, 'FD');
+
+        // Draw Sender Indicator & Timestamp
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(8.5);
+        if (isUser) {
+          doc.setTextColor(37, 99, 235); // Blue Accent
+        } else {
+          doc.setTextColor(124, 58, 237); // Purple Accent
+        }
+        doc.text(senderLabel, margin + 6, yPos + 6);
+
+        doc.setFont('Helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(156, 163, 175);
+        const nameWidth = doc.getTextWidth(senderLabel);
+        doc.text(`(${m.timestamp})`, margin + 9 + nameWidth, yPos + 6);
+
+        // Print message text
+        doc.setFont('Helvetica', 'normal');
+        doc.setFontSize(9.5);
+        doc.setTextColor(30, 41, 59);
+
+        let lineY = yPos + 11.5;
+        splitText.forEach((line: string) => {
+          doc.text(line, margin + 6, lineY);
+          lineY += 5;
+        });
+
+        // Add padding space below msg block
+        yPos += blockHeight + 6;
+      });
+
+      // Signature/Footer area
+      checkPageBreak(15);
+      yPos += 2;
+      doc.setDrawColor(241, 245, 249);
+      doc.setLineWidth(0.5);
+      doc.line(margin, yPos, pageWidth - margin, yPos);
+
+      yPos += 6;
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(156, 163, 175);
+      doc.text('This document was dynamically compiled and exported from Sauvik Das\'s interactive AI companion at sauvikdev.in', margin, yPos);
+
+      // Save PDF file
+      const safeTitle = threadTitle
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-');
+
+      doc.save(`sauvikai-chat-${safeTitle || 'conversation'}.pdf`);
+      showToast(getLoc('download_success'), 'success');
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      showToast(lang === 'bn' ? 'পিডিএফ তৈরি করতে অক্ষম!' : 'Failed to compile PDF document.', 'error');
     }
   };
 
@@ -1011,18 +1299,33 @@ export const SauvikAISection = ({ isDark, toggleTheme }: SauvikAIProps) => {
             </div>
 
             {/* Quick config language override */}
-            <div className="px-3 py-2 bg-black/40 border-b border-glass-border flex items-center justify-between text-[10px]">
-              <span className="text-text-secondary font-medium uppercase font-mono tracking-tighter text-[9px]">{getLoc('choose_lang')}</span>
-              <div className="flex gap-1">
-                {(['auto', 'en', 'bn'] as const).map(m => (
-                  <button
-                    key={m}
-                    onClick={() => setSelectedLangMode(m)}
-                    className={`px-2 py-0.5 rounded uppercase font-bold tracking-tighter text-[9px] transition-colors cursor-pointer ${selectedLangMode === m ? 'bg-brand-blue text-white' : 'text-white/40 hover:text-white/80'}`}
-                  >
-                    {m === 'auto' ? 'Auto' : m === 'bn' ? 'বাংলা' : 'EN'}
-                  </button>
-                ))}
+            <div className="px-4 py-2.5 bg-black/40 border-b border-glass-border flex items-center justify-between text-[10px]">
+              <span className="text-text-secondary font-medium uppercase font-mono tracking-tighter text-[9px] flex items-center gap-1">
+                <Languages size={11} className="text-brand-blue" />
+                {getLoc('choose_lang')}
+              </span>
+              <div className="flex gap-1.5">
+                {[
+                  { code: 'en', label: 'English' },
+                  { code: 'bn', label: 'বাংলা' }
+                ].map((item) => {
+                  const isActive = (selectedLangMode === 'bn' || (selectedLangMode === 'auto' && lang === 'bn')) 
+                    ? item.code === 'bn' 
+                    : item.code === 'en';
+                  return (
+                    <button
+                      key={item.code}
+                      onClick={() => handleLangToggle(item.code as 'en' | 'bn')}
+                      className={`px-2 py-0.5 rounded-md font-bold tracking-tight text-[9px] transition-all cursor-pointer ${
+                        isActive 
+                          ? 'bg-gradient-to-r from-brand-blue to-brand-purple text-white shadow-md' 
+                          : 'text-white/40 hover:text-white/80'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -1034,12 +1337,26 @@ export const SauvikAISection = ({ isDark, toggleTheme }: SauvikAIProps) => {
                     key={m.id}
                     className={`flex gap-3 max-w-[85%] ${m.sender === 'user' ? 'ml-auto flex-row-reverse text-right' : 'mr-auto text-left'}`}
                   >
-                    <div className={`p-2 rounded-xl shrink-0 h-fit ${m.sender === 'user' ? 'bg-brand-blue/15 text-brand-blue border border-brand-blue/30' : 'bg-white/5 text-brand-purple border border-white/10'}`}>
+                    <div className={`p-2 rounded-xl shrink-0 h-fit ${
+                      m.sender === 'user' 
+                        ? 'bg-brand-blue/15 text-brand-blue border border-brand-blue/30' 
+                        : isDark 
+                          ? 'bg-white/5 text-brand-purple border border-white/10' 
+                          : 'bg-indigo-50 text-brand-purple border border-indigo-100'
+                    }`}>
                       {m.sender === 'user' ? <User size={13} /> : <Bot size={13} />}
                     </div>
                     <div className="space-y-1">
-                      <div className={`px-4 py-2.5 rounded-2xl border ${m.sender === 'user' ? 'bg-brand-blue text-white rounded-tr-none border-brand-blue/35 text-left' : 'bg-white/5 border-glass-border font-light rounded-tl-none font-mono text-xs'}`}>
-                        <MessageContentRenderer text={m.text} />
+                      <div className={`px-4 py-2.5 rounded-2xl border ${
+                        m.sender === 'user' 
+                          ? isDark 
+                            ? 'bg-brand-blue text-white rounded-tr-none border-brand-blue/35 text-left' 
+                            : 'bg-indigo-600 text-white rounded-tr-none border-indigo-500 text-left'
+                          : isDark 
+                            ? 'bg-white/5 border-glass-border font-light rounded-tl-none font-mono text-xs' 
+                            : 'bg-slate-100 border-slate-200 text-slate-800 rounded-tl-none font-mono text-xs'
+                      }`}>
+                        <MessageContentRenderer text={m.text} isUser={m.sender === 'user'} isDark={isDark} />
                       </div>
                       <span className="text-[9px] opacity-40 font-mono tracking-widest uppercase block">{m.timestamp}</span>
                     </div>
@@ -1137,6 +1454,8 @@ export const SauvikAISection = ({ isDark, toggleTheme }: SauvikAIProps) => {
                   <span className="hidden sm:inline">{getLoc('back_port')}</span>
                 </button>
 
+
+
                 {/* Vertical Divider */}
                 <span className={`h-6 w-[1px] ${isDark ? 'bg-white/10' : 'bg-slate-200'}`} />
 
@@ -1170,43 +1489,38 @@ export const SauvikAISection = ({ isDark, toggleTheme }: SauvikAIProps) => {
                   <History size={16} />
                 </button>
 
-                {/* Premium Assistant Language Override Selector */}
-                <div className={`p-1 rounded-full flex gap-1 items-center text-[10px] font-bold border ${isDark ? 'bg-white/5 border-glass-border' : 'bg-slate-100 border-slate-200'}`}>
-                  {[
-                    { value: 'auto', label: getLoc('lang_auto') },
-                    { value: 'bn', label: 'বাংলা' },
-                    { value: 'en', label: 'English' }
-                  ].map(opt => (
-                    <button
-                      key={opt.value}
-                      onClick={() => {
-                        const val = opt.value as 'auto' | 'en' | 'bn';
-                        setSelectedLangMode(val);
-                        // Also sync active web layout language for responsive interface translation
-                        if (val === 'bn') {
-                          setLang('bn');
-                        } else if (val === 'en') {
-                          setLang('en');
-                        }
-                        showToast(
-                          val === 'auto'
-                            ? (lang === 'bn' ? 'অটো ল্যাঙ্গুয়েজ ডিটেকশন সক্রিয় করা হয়েছে' : 'Auto language detection enabled')
-                            : val === 'bn'
-                              ? 'বাংলা ভাষা নির্বাচন করা হয়েছে'
-                              : 'English language selected',
-                          'success'
-                        );
-                      }}
-                      className={`px-3 py-1.5 rounded-full cursor-pointer transition-all ${
-                        selectedLangMode === opt.value
-                          ? 'bg-gradient-to-r from-brand-blue to-brand-purple text-white shadow-md font-extrabold'
-                          : 'opacity-50 hover:opacity-100 text-[var(--text-primary)] hover:bg-white/5'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
+                {/* Custom Bilingual Language Switcher */}
+                <div className={`p-1 rounded-xl flex items-center gap-1 text-[11px] font-bold border shrink-0 ${isDark ? 'bg-white/5 border-glass-border' : 'bg-slate-100 border-slate-200 shadow-sm'}`}>
+                  <div className="flex items-center gap-1.5 px-2 text-text-secondary select-none">
+                    <Languages size={13} className="text-brand-blue" />
+                    <span className="hidden md:inline uppercase text-[9px] tracking-wider font-mono">{lang === 'bn' ? 'ভাষা' : 'Lang'}</span>
+                  </div>
+                  <div className="flex gap-1">
+                    {[
+                      { code: 'en', label: 'English' },
+                      { code: 'bn', label: 'বাংলা' }
+                    ].map((item) => {
+                      const isActive = (selectedLangMode === 'bn' || (selectedLangMode === 'auto' && lang === 'bn')) 
+                        ? item.code === 'bn' 
+                        : item.code === 'en';
+                      return (
+                        <button
+                          key={item.code}
+                          onClick={() => handleLangToggle(item.code as 'en' | 'bn')}
+                          className={`relative px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer select-none overflow-hidden ${
+                            isActive
+                              ? 'bg-gradient-to-r from-brand-blue to-brand-purple text-white shadow-md font-extrabold scale-[1.02]'
+                              : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+                          }`}
+                        >
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
+
+
 
                 {/* Theme toggle sync client */}
                 <button
@@ -1387,20 +1701,28 @@ export const SauvikAISection = ({ isDark, toggleTheme }: SauvikAIProps) => {
                             className={`flex gap-4 max-w-full ${isUser ? 'ml-auto flex-row-reverse text-right items-start' : 'mr-auto text-left items-start'}`}
                           >
                             {/* Avatar */}
-                            <div className={`p-3 rounded-2xl shrink-0 h-fit border shadow-md ${isUser ? 'bg-brand-blue/10 border-brand-blue/30 text-brand-blue' : 'bg-white/5 border-glass-border text-brand-purple'}`}>
+                            <div className={`p-3 rounded-2xl shrink-0 h-fit border shadow-md transition-all duration-300 hover:scale-110 ${
+                              isUser 
+                                ? 'bg-brand-blue/10 border-brand-blue/30 text-brand-blue' 
+                                : isDark 
+                                  ? 'bg-white/5 border-glass-border text-brand-purple' 
+                                  : 'bg-indigo-50 border-indigo-100 text-brand-purple'
+                            }`}>
                               {isUser ? <User size={18} /> : <Bot size={18} />}
                             </div>
 
                             {/* Message Bubble box */}
                             <div className="space-y-1.5 max-w-[80vw] sm:max-w-3xl text-left">
-                              <div className={`px-5 py-4 rounded-3xl border shadow-lg leading-relaxed text-sm ${
+                              <div className={`px-5 py-4 rounded-3xl border shadow-lg leading-relaxed text-sm transition-all duration-300 hover:scale-[1.005] hover:shadow-xl hover:-translate-y-[1px] ${
                                 isUser 
-                                  ? 'bg-gradient-to-r from-brand-blue/90 to-brand-blue text-white rounded-tr-none border-brand-blue/40' 
+                                  ? isDark 
+                                    ? 'bg-gradient-to-r from-brand-blue/90 to-brand-blue text-white rounded-tr-none border-brand-blue/40 hover:from-brand-blue hover:to-brand-blue/95 hover:border-brand-blue/60' 
+                                    : 'bg-gradient-to-r from-indigo-600 via-indigo-600 to-brand-purple text-white rounded-tr-none border-indigo-500 hover:opacity-95 shadow-[0_4px_20px_rgba(79,70,229,0.15)]'
                                   : isDark
-                                    ? 'bg-[#0f0f18] border-glass-border rounded-tl-none font-light text-white/95'
-                                    : 'bg-white border-slate-200 text-slate-800 rounded-tl-none font-light'
+                                    ? 'bg-[#12121c]/90 backdrop-blur-md border-glass-border rounded-tl-none font-normal text-white/95 hover:bg-[#151525]/95 hover:border-brand-purple/40 hover:shadow-brand-purple/5'
+                                    : 'bg-white/95 backdrop-blur-md border-slate-200 text-slate-800 rounded-tl-none font-normal hover:bg-white hover:border-brand-blue/30 hover:shadow-[0_8px_30px_rgba(148,163,184,0.15)]'
                               }`}>
-                                <MessageContentRenderer text={m.text} />
+                                <MessageContentRenderer text={m.text} isUser={isUser} isDark={isDark} />
                               </div>
 
                               {/* Timestamp and toolbar actions */}

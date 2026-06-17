@@ -2955,8 +2955,6 @@ function PortfolioApp() {
       <GlowingDivider />
       <About />
       <GlowingDivider />
-      <WhyChooseMe />
-      <GlowingDivider />
       <Portfolio />
       <GlowingDivider />
       <Testimonials />
