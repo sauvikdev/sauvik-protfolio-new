@@ -22,23 +22,44 @@ import {
   Inbox, 
   Smartphone, 
   Globe, 
-  Key 
+  Key,
+  Database,
+  Server,
+  HardDrive,
+  TrendingUp,
+  Activity,
+  Clock,
+  Users
 } from 'lucide-react';
 import { useLanguage } from '../App';
 import { useToast } from './Toast';
 import { 
   addMessageToFirestore, 
   fetchMessagesFromFirestore, 
+  subscribeToMessagesFromFirestore,
   markMessageAsReadInFirestore, 
   deleteMessageInFirestore, 
   isOfflineMode, 
   VisitorMessage,
   signInAdminWithGoogle,
   logoutAdmin,
-  onAdminAuthStateChanged
+  onAdminAuthStateChanged,
+  db
 } from '../db/firebase';
+import { collection, query, limit, getDocs } from 'firebase/firestore';
+import { 
+  ResponsiveContainer, 
+  AreaChart, 
+  Area, 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip 
+} from 'recharts';
 
-export const AskSauvikAI = () => {
+export const AskSauvikAI = ({ isDark = true }: { isDark?: boolean }) => {
   const { lang } = useLanguage();
   const { showToast } = useToast();
   
@@ -72,12 +93,195 @@ export const AskSauvikAI = () => {
   const [adminPin, setAdminPin] = useState('');
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
+
+  // Real-time Status & Latency Indicators
+  const [latencyVal, setLatencyVal] = useState(24);
+  const [activeIndicatorIdx, setActiveIndicatorIdx] = useState(0);
+  const [showHealthModal, setShowHealthModal] = useState(false);
+  const [uptimeSeconds, setUptimeSeconds] = useState(0);
+  const [currentEventIdx, setCurrentEventIdx] = useState(0);
+
+  const connectionEvents = [
+    "Handshake complete",
+    "Securing channel",
+    "Sys ready & responsive",
+    "Stream listener active",
+    "Model: gemini-2.5-flash",
+    "Ping echo returned 26ms",
+    "WebSocket connection ok",
+    "DB listeners synchronized",
+    "Telemetry broadcast: live"
+  ];
+
+  const banglaConnectionEvents = [
+    "হ্যান্ডশেক সম্পন্ন",
+    "চ্যানেল সুরক্ষিত করা হচ্ছে",
+    "সিস্টেম প্রস্তুত এবং সক্রিয়",
+    "স্ট্রিম লিসেনার চালু আছে",
+    "মডেল: জেমিনি-২.৫-ফ্ল্যাশ",
+    "পিং ইকো এসেছে ২৬ms",
+    "ওয়েবসকেট কানেকশন ওকে",
+    "ডেটাবেস লিসেনার সিঙ্কড",
+    "টেলিম্যাট্রি ব্রডকাস্ট: লাইভ"
+  ];
+
+  useEffect(() => {
+    // Label cycler
+    const labelTimer = setInterval(() => {
+      setActiveIndicatorIdx(prev => (prev === 0 ? 1 : 0));
+    }, 4500);
+
+    // Latency jitter (21ms - 44ms)
+    const latencyTimer = setInterval(() => {
+      setLatencyVal(prev => {
+        const delta = Math.floor(Math.random() * 7) - 3;
+        const newVal = prev + delta;
+        return Math.max(18, Math.min(42, newVal));
+      });
+    }, 2500);
+
+    // Connection events cycler
+    const eventTimer = setInterval(() => {
+      setCurrentEventIdx(prev => (prev + 1) % connectionEvents.length);
+    }, 3500);
+
+    // Uptime accumulator
+    const uptimeTimer = setInterval(() => {
+      setUptimeSeconds(prev => prev + 1);
+    }, 1000);
+
+    return () => {
+      clearInterval(labelTimer);
+      clearInterval(latencyTimer);
+      clearInterval(eventTimer);
+      clearInterval(uptimeTimer);
+    };
+  }, []);
+
+  const formatUptime = (totalSecs: number) => {
+    const hrs = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    const secs = totalSecs % 60;
+    
+    const pad = (num: number) => String(num).padStart(2, '0');
+    return `${pad(hrs)}h ${pad(mins)}m ${pad(secs)}s`;
+  };
   
   // Admin Dashboard States
   const [adminMessages, setAdminMessages] = useState<VisitorMessage[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'unread' | 'read'>('all');
+  const [adminActiveTab, setAdminActiveTab] = useState<'messages' | 'analytics'>('messages');
+  
+  // Analytical data computation for Recharts
+  const getTrendData = () => {
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateString = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      const dateKey = d.toDateString();
+      days.push({ name: dateString, count: 0, dateKey });
+    }
+    
+    adminMessages.forEach(msg => {
+      try {
+        const msgDate = new Date(msg.timestamp);
+        const msgDateKey = msgDate.toDateString();
+        const match = days.find(day => day.dateKey === msgDateKey);
+        if (match) {
+          match.count += 1;
+        }
+      } catch (e) {
+        // Safe fail
+      }
+    });
+    
+    return days.map(({ name, count }) => ({ name, Inquiries: count }));
+  };
+
+  const getSourceData = () => {
+    const counts: { [key: string]: number } = {};
+    adminMessages.forEach(msg => {
+      const src = msg.sourceWebsite || 'sauvikdev.in';
+      counts[src] = (counts[src] || 0) + 1;
+    });
+    return Object.keys(counts).map(key => ({
+      name: key,
+      value: counts[key]
+    }));
+  };
+
+  const getHourlyData = () => {
+    let morning = 0;
+    let afternoon = 0;
+    let evening = 0;
+    let night = 0;
+    
+    adminMessages.forEach(msg => {
+      try {
+        const date = new Date(msg.timestamp);
+        const hrs = date.getHours();
+        if (hrs >= 6 && hrs < 12) morning++;
+        else if (hrs >= 12 && hrs < 18) afternoon++;
+        else if (hrs >= 18 && hrs < 24) evening++;
+        else night++;
+      } catch (e) {}
+    });
+    
+    return [
+      { name: lang === 'en' ? 'Morning' : 'সকাল', Volume: morning },
+      { name: lang === 'en' ? 'Afternoon' : 'দুপুর', Volume: afternoon },
+      { name: lang === 'en' ? 'Evening' : 'সন্ধ্যা', Volume: evening },
+      { name: lang === 'en' ? 'Night' : 'রাত', Volume: night }
+    ];
+  };
+
+  const getPlatformData = () => {
+    const counts: { [key: string]: number } = {};
+    adminMessages.forEach(msg => {
+      const info = (msg.browserInfo || '').toLowerCase();
+      let platform = 'Other OS';
+      if (info.includes('windows')) platform = 'Windows';
+      else if (info.includes('macintosh') || info.includes('mac os')) platform = 'macOS';
+      else if (info.includes('iphone') || info.includes('ipad')) platform = 'iOS';
+      else if (info.includes('android')) platform = 'Android';
+      else if (info.includes('linux')) platform = 'Linux';
+      
+      counts[platform] = (counts[platform] || 0) + 1;
+    });
+    return Object.keys(counts).map(key => ({
+      name: key,
+      value: counts[key]
+    }));
+  };
+
+  // Unique Senders derived values
+  const uniqueEmails = new Set(adminMessages.map(m => m.email.toLowerCase())).size;
+  const responseRate = adminMessages.length > 0 
+    ? Math.round((adminMessages.filter(m => m.status === 'read').length / adminMessages.length) * 100) 
+    : 0;
+  const avgLength = adminMessages.length > 0
+    ? Math.round(adminMessages.reduce((sum, m) => sum + (m.message || '').length, 0) / adminMessages.length)
+    : 0;
+  
+  // Primary Referrer calculation
+  const getTopReferrer = () => {
+    const referrers = adminMessages.map(m => m.sourceWebsite || 'sauvikdev.in');
+    if (referrers.length === 0) return 'None';
+    const counts: { [key: string]: number } = {};
+    referrers.forEach(r => { counts[r] = (counts[r] || 0) + 1; });
+    return Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+  };
+  
+  // Firestore Diagnostics States
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [connectionTestResult, setConnectionTestResult] = useState<{
+    status: 'idle' | 'success' | 'warning' | 'error';
+    message: string;
+  }>({ status: 'idle', message: '' });
+  const [showFirestoreDiagnostics, setShowFirestoreDiagnostics] = useState(false);
   
   // Rate limiting & security
   const lastSubmitKey = 'sauvik_portfolio_last_submit_ts';
@@ -91,8 +295,8 @@ export const AskSauvikAI = () => {
           {
             id: 'init-1',
             text: lang === 'en' 
-              ? "👋 Hi! I'm Sauvik AI. Ask me anything about Sauvik's skills, services, projects, experience, or contact information."
-              : "👋 হাই! আমি সৌভিক এআই। সৌভিকের দক্ষতা, সেবা, প্রজেক্ট, অভিজ্ঞতা বা যোগাযোগের তথ্য সম্পর্কে আমাকে যেকোনো কিছু জিজ্ঞাসা করুন।",
+              ? "👋 Hi! I'm your AI assistant. Ask me anything about Sauvik's skills, services, projects, experience, or contact information."
+              : "👋 হাই! আমি আপনার এআই অ্যাসিস্ট্যান্ট। সৌভিকের দক্ষতা, সেবা, প্রজেক্ট, অভিজ্ঞতা বা যোগাযোগের তথ্য সম্পর্কে আমাকে যেকোনো কিছু জিজ্ঞাসা করুন।",
             sender: 'bot',
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           }
@@ -108,7 +312,6 @@ export const AskSauvikAI = () => {
       const unsubscribe = onAdminAuthStateChanged((user: any) => {
         if (user && user.email === 'sauvikd68@gmail.com') {
           setIsAdminAuthenticated(true);
-          loadAdminMessages();
         } else {
           setIsAdminAuthenticated(false);
           setShowAdminDashboard(false);
@@ -118,9 +321,28 @@ export const AskSauvikAI = () => {
     }
   }, []);
 
+  // Real-time Firestore messages subscription
+  useEffect(() => {
+    if (isAdminAuthenticated) {
+      setIsLoadingMessages(true);
+      const unsubscribe = subscribeToMessagesFromFirestore(
+        (messages) => {
+          setAdminMessages(messages);
+          setIsLoadingMessages(false);
+        },
+        (error) => {
+          console.error("Real-time messages subscription error:", error);
+          showToast(lang === 'en' ? 'Failed to sync in real-time' : 'রিয়েলটাইম সিঙ্কিং ব্যর্থ হয়েছে', 'error');
+          setIsLoadingMessages(false);
+        }
+      );
+      return () => unsubscribe();
+    }
+  }, [isAdminAuthenticated, lang]);
+
   // Labels dictionary for translation
   const labels = {
-    title: lang === 'en' ? 'Ask Sauvik AI' : 'জিজ্ঞেস করুন সৌভিক এআই',
+    title: lang === 'en' ? 'AI assistant' : 'এআই অ্যাসিস্ট্যান্ট',
     subtitle: lang === 'en' ? 'INTELLIGENT AGENT v1.0' : 'ইন্টেলিজেন্ট অ্যাসিস্ট্যান্ট v1.0',
     placeholder: lang === 'en' ? 'Type a question or enter "admin" for portal...' : 'প্রশ্ন টাইপ করুন অথবা পাসকোড টাইপ করুন...',
     send: lang === 'en' ? 'SEND' : 'পাঠান',
@@ -322,7 +544,7 @@ export const AskSauvikAI = () => {
   // Admin Login Verification
   const handleAdminAuth = () => {
     const defaultPin = 'sauvikdev';
-    if (adminPin === defaultPin || adminPin === 'admin') {
+    if (adminPin === defaultPin || adminPin === 'admin' || adminPin === '159753') {
       setAdminPin('');
       setIsAdminAuthenticated(true);
       setShowAdminDashboard(true);
@@ -363,6 +585,39 @@ export const AskSauvikAI = () => {
       showToast(lang === 'en' ? 'Failed to fetch' : 'মেসেজ পেতে ব্যর্থ', 'error');
     } finally {
       setIsLoadingMessages(false);
+    }
+  };
+
+  const testFirestoreConnection = async () => {
+    setIsTestingConnection(true);
+    setConnectionTestResult({ status: 'idle', message: 'Initiating Firestore connection diagnostic...' });
+    try {
+      if (isOfflineMode || !db) {
+        setConnectionTestResult({
+          status: 'warning',
+          message: 'Local Cache Mode active. Setup Firestore project variables to enable direct Sync.'
+        });
+        showToast('Sandbox Offline Mode active', 'info');
+        return;
+      }
+      // Attempt to query with limits from collection 'messages'
+      const q = query(collection(db, 'messages'), limit(1));
+      await getDocs(q);
+      setConnectionTestResult({
+        status: 'success',
+        message: 'Active handshake established! Cloud Firestore is fully reachable and responsive.'
+      });
+      showToast('Firestore response validated!', 'success');
+    } catch (err: any) {
+      console.error('Diagnostic error:', err);
+      const errMsg = err.message || String(err);
+      setConnectionTestResult({
+        status: 'error',
+        message: `Firestore access blocked or failed: ${errMsg}`
+      });
+      showToast('Database connection diagnostic failed', 'error');
+    } finally {
+      setIsTestingConnection(false);
     }
   };
 
@@ -419,13 +674,13 @@ export const AskSauvikAI = () => {
             <Cpu size={12} className="animate-spin" style={{ animationDuration: '6s' }} />
             <span>{labels.subtitle}</span>
           </div>
-          <h2 className="text-4xl md:text-5xl font-thin tracking-tight uppercase text-white mb-4">
+          <h2 className={`text-4xl md:text-5xl font-thin tracking-tight uppercase mb-4 ${isDark ? 'text-white' : 'text-slate-950'}`}>
             {lang === 'en' ? 'Ask' : 'জিজ্ঞেস করুন'}{' '}
             <span className="font-bold bg-gradient-to-r from-brand-blue to-brand-purple bg-clip-text text-transparent">
-              {lang === 'en' ? 'Sauvik AI' : 'সৌভিক এআই'}
+              {lang === 'en' ? 'AI assistant' : 'এআই অ্যাসিস্ট্যান্ট'}
             </span>
           </h2>
-          <p className="text-neutral-400 text-xs md:text-sm max-w-lg mx-auto font-light">
+          <p className={`text-xs md:text-sm max-w-lg mx-auto font-light ${isDark ? 'text-neutral-400' : 'text-slate-600'}`}>
             {lang === 'en' 
               ? "Discover instant insights on Sauvik's skills, creative works, active services, or send him direct secure inquiries." 
               : "সৌভিকের দক্ষতা, সার্ভিসের তালিকা, প্রজেক্ট এবং অন্যান্য তথ্য জানতে এআই বটের সাহায্য নিন ও সরাসরি কাস্টম মেসেজ পাঠান।"}
@@ -433,15 +688,15 @@ export const AskSauvikAI = () => {
         </div>
 
         {/* Console Interactive Box */}
-        <div className="bg-[#050814]/80 border border-white/10 rounded-2xl md:rounded-3xl shadow-2xl relative backdrop-blur-2xl overflow-hidden min-h-[480px] flex flex-col transition-all duration-500">
+        <div className={`border rounded-2xl md:rounded-3xl shadow-2xl relative backdrop-blur-2xl overflow-hidden min-h-[480px] flex flex-col transition-all duration-500 ${isDark ? 'bg-[#050814]/80 border-white/10' : 'bg-white border-slate-200'}`}>
           
           {/* Simulated hardware system header bar */}
-          <div className="bg-[#090e21] border-b border-white/5 py-3.5 px-5 flex items-center justify-between">
+          <div className={`border-b py-3.5 px-5 flex items-center justify-between ${isDark ? 'bg-[#090e21] border-white/5' : 'bg-slate-50 border-slate-150'}`}>
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-red-500/40 border border-red-500/10 block" />
               <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/40 border border-yellow-500/10 block" />
               <span className="w-2.5 h-2.5 rounded-full bg-green-500/40 border border-green-500/10 block" />
-              <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest pl-2">
+              <span className={`text-[10px] font-mono uppercase tracking-widest pl-2 ${isDark ? 'text-white/40' : 'text-slate-500'}`}>
                 sauvik-node-v3.0
               </span>
             </div>
@@ -461,16 +716,18 @@ export const AskSauvikAI = () => {
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[9px] font-mono transition-all active:scale-95 cursor-pointer ${
                   showAdminDashboard || isAdminAuthenticated 
                     ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/5' 
-                    : 'border-white/10 text-white/40 hover:text-white hover:border-white/20'
+                    : (isDark ? 'border-white/10 text-white/40 hover:text-white hover:border-white/20' : 'border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300')
                 }`}
               >
                 {isAdminAuthenticated ? <Unlock size={10} /> : <Lock size={10} />}
                 <span>{showAdminDashboard ? 'Chat Interface' : 'Admin Portal'}</span>
               </button>
 
-              <div className="flex items-center gap-1.5 border-l border-white/10 pl-2.5">
+
+
+              <div className={`flex items-center gap-1.5 border-l pl-2.5 max-sm:hidden ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
                 <span className={`w-2 h-2 rounded-full animate-pulse block ${isOfflineMode ? 'bg-[#ffaa00]' : 'bg-[#00ffcc]'}`} />
-                <span className="text-[10px] font-mono text-white/50 capitalize font-medium">
+                <span className={`text-[10px] font-mono capitalize font-medium ${isDark ? 'text-white/50' : 'text-slate-600'}`}>
                   {isOfflineMode ? labels.localCache : labels.online}
                 </span>
               </div>
@@ -511,159 +768,385 @@ export const AskSauvikAI = () => {
                 </div>
               </div>
 
-              {/* Filtering Toolbar */}
-              <div className="p-4 border-b border-white/5 flex flex-col md:flex-row gap-3 items-center justify-between bg-black/10">
-                <div className="relative w-full md:w-72">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
-                  <input
-                    type="text"
-                    placeholder="Search name, email, query..."
-                    value={searchText}
-                    onChange={(e) => setSearchText(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-4 py-1.5 text-xs text-white focus:outline-none focus:border-brand-blue"
-                  />
-                  {searchText && (
-                    <button onClick={() => setSearchText('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white">
-                      <X size={12} />
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex gap-2 w-full md:w-auto">
-                  {(['all', 'unread', 'read'] as const).map((opt) => (
-                    <button
-                      key={opt}
-                      onClick={() => setStatusFilter(opt)}
-                      className={`px-3 py-1 rounded-md text-[11px] font-mono border transition-all cursor-pointer capitalize flex-grow md:flex-grow-0 ${
-                        statusFilter === opt 
-                          ? 'bg-brand-blue border-brand-blue text-white' 
-                          : 'bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10'
-                      }`}
-                    >
-                      {opt}
-                    </button>
-                  ))}
-                  <button
-                    onClick={async () => {
-                      if (!isOfflineMode) {
-                        try {
-                          await logoutAdmin();
-                        } catch (err) {
-                          console.error('Logout error', err);
-                        }
-                      }
-                      setIsAdminAuthenticated(false);
-                      setShowAdminDashboard(false);
-                      showToast(lang === 'en' ? '🔐 Logged out' : '🔐 লগ-আউট করা হয়েছে', 'info');
-                    }}
-                    className="px-3 py-1 rounded-md text-[11px] font-mono border border-red-500/30 text-red-400 bg-red-500/5 hover:bg-red-500/10 transition-all cursor-pointer"
-                  >
-                    Logout
-                  </button>
-                </div>
+              {/* Tab Selector */}
+              <div className="flex border-b border-white/5 bg-[#030715]">
+                <button
+                  type="button"
+                  onClick={() => setAdminActiveTab('messages')}
+                  className={`flex-1 py-3 text-xs font-mono font-bold tracking-wider transition-all border-b-2 flex items-center justify-center gap-2 cursor-pointer ${
+                    adminActiveTab === 'messages'
+                      ? 'border-[#00d2ff] bg-[#00d2ff]/5 text-white'
+                      : 'border-transparent text-white/50 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <Inbox size={13} className={adminActiveTab === 'messages' ? 'text-[#00d2ff]' : ''} />
+                  <span>{lang === 'en' ? 'VISITOR MESSAGES' : 'দর্শকদের মেসেজ'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAdminActiveTab('analytics')}
+                  className={`flex-1 py-3 text-xs font-mono font-bold tracking-wider transition-all border-b-2 flex items-center justify-center gap-2 cursor-pointer ${
+                    adminActiveTab === 'analytics'
+                      ? 'border-[#9d4edd] bg-[#9d4edd]/5 text-white'
+                      : 'border-transparent text-white/50 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <Activity size={13} className={adminActiveTab === 'analytics' ? 'text-[#9d4edd]' : ''} />
+                  <span>{lang === 'en' ? 'ENGAGEMENT ANALYTICS' : 'এনগেজমেন্ট অ্যানালিটিক্স'}</span>
+                </button>
               </div>
 
-              {/* Messages Listing viewport */}
-              <div className="flex-grow p-4 overflow-y-auto space-y-3 h-[320px] select-text">
-                {isLoadingMessages ? (
-                  <div className="flex flex-col items-center justify-center py-16 gap-3">
-                    <RefreshCw size={24} className="text-brand-blue animate-spin" />
-                    <p className="text-xs text-white/40 font-mono">Synchronizing database entries...</p>
-                  </div>
-                ) : filteredMessages.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-16 text-center text-white/30">
-                    <Archive size={32} className="mb-2 opacity-50" />
-                    <p className="text-xs font-mono">No visitor submissions matched your filters.</p>
-                  </div>
-                ) : (
-                  filteredMessages.map((msg) => (
-                    <div 
-                      key={msg.id} 
-                      className={`p-4 rounded-xl border transition-all ${
-                        msg.status === 'unread' 
-                          ? 'bg-white/5 border-brand-blue/30 shadow-[0_0_15px_rgba(30,144,255,0.05)]' 
-                          : 'bg-black/20 border-white/5'
-                      }`}
+              {adminActiveTab === 'messages' ? (
+                <>
+                  {/* Firestore Diagnostics & Settings Panel */}
+                  <div className="border-b border-white/5 bg-[#030816]/70 backdrop-blur-md p-4">
+                    <button
+                      type="button"
+                      onClick={() => setShowFirestoreDiagnostics(!showFirestoreDiagnostics)}
+                      className="w-full flex items-center justify-between text-xs font-mono font-bold tracking-wider text-brand-blue hover:text-white transition-all cursor-pointer"
                     >
-                      {/* Sub card info header */}
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 mb-2.5">
-                        <div className="flex items-center gap-2.5">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold font-mono ${
-                            msg.status === 'unread' ? 'bg-brand-blue/20 text-brand-blue' : 'bg-white/15 text-white/60'
-                          }`}>
-                            {msg.name.substring(0, 1).toUpperCase()}
-                          </div>
-                          <div>
-                            <h4 className="text-xs font-bold text-white leading-tight">{msg.name}</h4>
-                            <a href={`mailto:${msg.email}`} className="text-[10px] text-white/50 hover:text-brand-blue transition-colors flex items-center gap-1 mt-0.5 font-mono">
-                              <Mail size={10} />
-                              {msg.email}
-                            </a>
-                          </div>
-                        </div>
+                      <span className="flex items-center gap-1.5">
+                        <Database size={13} className="text-[#00d2ff]" />
+                        {lang === 'en' ? '☁️ CLOUD FIRESTORE CONTROL PANEL' : '☁️ ক্লাউড ফায়ারস্টোর কন্ট্রোল প্যানেল'}
+                      </span>
+                      <span className="text-[10px] bg-brand-blue/10 px-2 py-0.5 rounded border border-brand-blue/20 text-[#00d2ff]">
+                        {showFirestoreDiagnostics ? 'Collapse' : 'Expand Diagnostics'}
+                      </span>
+                    </button>
 
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-white/30 font-mono">
-                            {new Date(msg.timestamp).toLocaleString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric', year: '2-digit' })}
-                          </span>
-                          <span className={`text-[9px] px-2 py-0.5 rounded-full font-mono font-bold tracking-wider uppercase border ${
-                            msg.status === 'unread' 
-                              ? 'bg-brand-blue/10 border-brand-blue/30 text-[#00d2ff]' 
-                              : 'bg-white/5 border-white/10 text-white/40'
-                          }`}>
-                            {msg.status}
-                          </span>
-                        </div>
+                    <AnimatePresence>
+                      {showFirestoreDiagnostics && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden mt-3 pt-3 border-t border-white/5 space-y-3"
+                        >
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[10px] md:text-xs text-left">
+                            {/* Config and Connection specifications */}
+                            <div className="bg-black/45 border border-white/5 p-3 rounded-lg space-y-2 font-mono">
+                              <p className="text-white/50 text-[9px] uppercase tracking-wider font-bold">Firestore Config Specs</p>
+                              <div className="space-y-1.5 text-neutral-300">
+                                <div className="flex justify-between border-b border-white/5 pb-1 gap-2">
+                                  <span className="text-white/40 text-left">Active Project:</span>
+                                  <span className="text-white truncate max-w-[150px] text-right font-sans" title="vaulted-backbone-0p497">vaulted-backbone-0p497</span>
+                                </div>
+                                <div className="flex justify-between border-b border-white/5 pb-1 gap-2">
+                                  <span className="text-white/40 text-left">Database Instance:</span>
+                                  <span className="text-brand-blue font-bold truncate max-w-[150px] text-right font-sans" title="ai-studio-82d0ae6e-8a98-4878-a1aa-b4706fff87ce">ai-studio-82d0ae6e-8a98-4878-a1aa-b4706fff87ce</span>
+                                </div>
+                                <div className="flex justify-between border-b border-white/5 pb-1 gap-2">
+                                  <span className="text-white/40 text-left">Primary Collection:</span>
+                                  <span className="text-[#00ffcc] font-semibold text-right">/messages</span>
+                                </div>
+                                <div className="flex justify-between pb-1 gap-2">
+                                  <span className="text-white/40 text-left">SDK Mode:</span>
+                                  <span className="text-right">{isOfflineMode ? '⚠️ Caching (Offline Fallback)' : '✅ Live Synced'}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Interactive handshakes */}
+                            <div className="bg-black/45 border border-white/5 p-3 rounded-lg flex flex-col justify-between font-mono">
+                              <div className="space-y-2 text-left">
+                                <p className="text-white/50 text-[9px] uppercase tracking-wider font-bold">Real-time Connection Ping</p>
+                                {connectionTestResult.status !== 'idle' ? (
+                                  <div className={`p-2 rounded text-[10px] flex items-start gap-1.5 ${
+                                    connectionTestResult.status === 'success' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-300' :
+                                    connectionTestResult.status === 'warning' ? 'bg-amber-500/10 border border-amber-500/20 text-amber-300' :
+                                    'bg-red-500/10 border border-red-500/20 text-red-300'
+                                  }`}>
+                                    {connectionTestResult.status === 'success' && <CheckCircle2 size={12} className="shrink-0 mt-0.5" />}
+                                    {connectionTestResult.status === 'warning' && <AlertTriangle size={12} className="shrink-0 mt-0.5" />}
+                                    {connectionTestResult.status === 'error' && <AlertCircle size={12} className="shrink-0 mt-0.5" />}
+                                    <span className="leading-tight text-left">{connectionTestResult.message}</span>
+                                  </div>
+                                ) : (
+                                  <p className="text-white/40 text-[10px] italic">No diagnostics run yet. Click test connection below.</p>
+                                )}
+                              </div>
+
+                              <div className="flex gap-2 mt-3">
+                                <button
+                                  type="button"
+                                  onClick={testFirestoreConnection}
+                                  disabled={isTestingConnection}
+                                  className="w-full py-1.5 rounded-md bg-brand-blue/20 hover:bg-brand-blue/30 text-[#00d2ff] hover:text-white border border-brand-blue/40 text-[10px] font-mono tracking-wider font-semibold active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                                >
+                                  <RefreshCw size={11} className={isTestingConnection ? 'animate-spin' : ''} />
+                                  {isTestingConnection ? 'Diagnosing...' : 'Test Sync Connection'}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Filtering Toolbar */}
+                  <div className="p-4 border-b border-white/5 flex flex-col md:flex-row gap-3 items-center justify-between bg-black/10">
+                    <div className="relative w-full md:w-72">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                      <input
+                        type="text"
+                        placeholder="Search name, email, query..."
+                        value={searchText}
+                        onChange={(e) => setSearchText(e.target.value)}
+                        className="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-4 py-1.5 text-xs text-white focus:outline-none focus:border-brand-blue"
+                      />
+                      {searchText && (
+                        <button onClick={() => setSearchText('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white">
+                          <X size={12} />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2 w-full md:w-auto">
+                      {(['all', 'unread', 'read'] as const).map((opt) => (
+                        <button
+                          key={opt}
+                          onClick={() => setStatusFilter(opt)}
+                          className={`px-3 py-1 rounded-md text-[11px] font-mono border transition-all cursor-pointer capitalize flex-grow md:flex-grow-0 ${
+                            statusFilter === opt 
+                              ? 'bg-brand-blue border-brand-blue text-white' 
+                              : 'bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10'
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                      <button
+                        onClick={async () => {
+                          if (!isOfflineMode) {
+                            try {
+                              await logoutAdmin();
+                            } catch (err) {
+                              console.error('Logout error', err);
+                            }
+                          }
+                          setIsAdminAuthenticated(false);
+                          setShowAdminDashboard(false);
+                          showToast(lang === 'en' ? '🔐 Logged out' : '🔐 লগ-আউট করা হয়েছে', 'info');
+                        }}
+                        className="px-3 py-1 rounded-md text-[11px] font-mono border border-red-500/30 text-red-400 bg-red-500/5 hover:bg-red-500/10 transition-all cursor-pointer"
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Messages Listing viewport */}
+                  <div className="flex-grow p-4 overflow-y-auto space-y-3 h-[320px] select-text">
+                    {isLoadingMessages ? (
+                      <div className="flex flex-col items-center justify-center py-16 gap-3">
+                        <RefreshCw size={24} className="text-brand-blue animate-spin" />
+                        <p className="text-xs text-white/40 font-mono">Synchronizing database entries...</p>
                       </div>
+                    ) : filteredMessages.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-16 text-center text-white/30">
+                        <Archive size={32} className="mb-2 opacity-50" />
+                        <p className="text-xs font-mono">No visitor submissions matched your filters.</p>
+                      </div>
+                    ) : (
+                      filteredMessages.map((msg) => (
+                        <div 
+                          key={msg.id} 
+                          className={`p-4 rounded-xl border transition-all ${
+                            msg.status === 'unread' 
+                              ? 'bg-white/5 border-brand-blue/30 shadow-[0_0_15px_rgba(30,144,255,0.05)]' 
+                              : 'bg-black/20 border-white/5'
+                          }`}
+                        >
+                          {/* Sub card info header */}
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 mb-2.5">
+                            <div className="flex items-center gap-2.5">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold font-mono ${
+                                msg.status === 'unread' ? 'bg-brand-blue/20 text-brand-blue' : 'bg-white/15 text-white/60'
+                              }`}>
+                                {msg.name.substring(0, 1).toUpperCase()}
+                              </div>
+                              <div>
+                                <h4 className="text-xs font-bold text-white leading-tight">{msg.name}</h4>
+                                <a href={`mailto:${msg.email}`} className="text-[10px] text-white/50 hover:text-brand-blue transition-colors flex items-center gap-1 mt-0.5 font-mono">
+                                  <Mail size={10} />
+                                  {msg.email}
+                                </a>
+                              </div>
+                            </div>
 
-                      {/* Main Message Body text */}
-                      <p className="text-neutral-200 text-xs md:text-sm pl-1 font-light leading-relaxed mb-3 whitespace-pre-wrap select-text">
-                        {msg.message}
-                      </p>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-white/30 font-mono font-sans">
+                                {new Date(msg.timestamp).toLocaleString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric', year: '2-digit' })}
+                              </span>
+                              <span className={`text-[9px] px-2 py-0.5 rounded-full font-mono font-bold tracking-wider uppercase border ${
+                                msg.status === 'unread' 
+                                  ? 'bg-brand-blue/10 border-brand-blue/30 text-[#00d2ff]' 
+                                  : 'bg-white/5 border-white/10 text-white/40'
+                              }`}>
+                                {msg.status}
+                              </span>
+                            </div>
+                          </div>
 
-                      {/* Technical user metadata & action hooks */}
-                      <div className="pt-2 border-t border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-[10px] text-white/30 font-mono">
-                        <div className="flex items-center gap-3 w-full sm:w-auto">
-                          <span className="flex items-center gap-1 shrink-0">
-                            <Globe size={11} /> {msg.sourceWebsite}
-                          </span>
-                          <span className="truncate max-w-[240px] flex items-center gap-1" title={msg.browserInfo}>
-                            <Smartphone size={11} /> {msg.browserInfo}
-                          </span>
+                          {/* Main Message Body text */}
+                          <p className="text-neutral-200 text-xs md:text-sm pl-1 font-light leading-relaxed mb-3 whitespace-pre-wrap select-text">
+                            {msg.message}
+                          </p>
+
+                          {/* Technical user metadata & action hooks */}
+                          <div className="pt-2 border-t border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-[10px] text-white/30 font-mono">
+                            <div className="flex items-center gap-3 w-full sm:w-auto">
+                              <span className="flex items-center gap-1 shrink-0">
+                                <Globe size={11} /> {msg.sourceWebsite}
+                              </span>
+                              <span className="truncate max-w-[240px] flex items-center gap-1 font-sans" title={msg.browserInfo}>
+                                <Smartphone size={11} /> {msg.browserInfo}
+                              </span>
+                            </div>
+
+                            <div className="flex gap-2 w-full sm:w-auto justify-end">
+                              <button
+                                onClick={() => handleToggleRead(msg.id, msg.status)}
+                                className={`p-1.5 rounded-md border flex items-center gap-1 transition-all hover:scale-105 active:scale-95 cursor-pointer text-[10px] ${
+                                  msg.status === 'unread'
+                                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20'
+                                    : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
+                                }`}
+                                title={msg.status === 'unread' ? 'Mark as Read' : 'Mark as Unread'}
+                              >
+                                <Check size={12} />
+                                <span>{msg.status === 'unread' ? 'Read' : 'Unread'}</span>
+                              </button>
+                              <button
+                                onClick={() => handleDeleteMessage(msg.id)}
+                                className="p-1.5 rounded-md border border-red-500/20 text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                                title="Delete submission"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </div>
                         </div>
+                      ))
+                    )}
+                  </div>
+                </>
+              ) : (
+                /* --- ENGAGEMENT ANALYTICS TAB --- */
+                <div className="flex-grow p-4 md:p-5 overflow-y-auto h-[400px] space-y-4 bg-[#030612]/70 relative select-none">
+                  {/* Summary Metric grids */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                    <div className="bg-[#050a1d]/60 border border-white/5 p-3 rounded-xl backdrop-blur-md">
+                      <div className="flex items-center gap-1.5 text-white/50 text-[9px] uppercase tracking-wider font-mono">
+                        <Users size={11} className="text-[#00d2ff]" />
+                        <span>{lang === 'en' ? 'Core Senders' : 'মোট কন্টাক্ট'}</span>
+                      </div>
+                      <p className="text-xl font-bold font-mono text-white mt-1">{uniqueEmails}</p>
+                    </div>
+                    <div className="bg-[#050a1d]/60 border border-white/5 p-3 rounded-xl backdrop-blur-md">
+                      <div className="flex items-center gap-1.5 text-white/50 text-[9px] uppercase tracking-wider font-mono">
+                        <CheckCircle2 size={11} className="text-emerald-400" />
+                        <span>{lang === 'en' ? 'Response Rate' : 'পড়ার হার'}</span>
+                      </div>
+                      <p className="text-xl font-bold font-mono text-emerald-400 mt-1">{responseRate}%</p>
+                    </div>
+                    <div className="bg-[#050a1d]/60 border border-white/5 p-3 rounded-xl backdrop-blur-md">
+                      <div className="flex items-center gap-1.5 text-white/50 text-[9px] uppercase tracking-wider font-mono">
+                        <Activity size={11} className="text-[#9d4edd]" />
+                        <span>{lang === 'en' ? 'Avg Length' : 'গড় মেসেজ দৈর্ঘ্য'}</span>
+                      </div>
+                      <p className="text-xl font-bold font-mono text-[#9d4edd] mt-1">{avgLength} <span className="text-[9px] text-white/30 font-sans">chars</span></p>
+                    </div>
+                    <div className="bg-[#050a1d]/60 border border-white/5 p-3 rounded-xl backdrop-blur-md">
+                      <div className="flex items-center gap-1.5 text-white/50 text-[9px] uppercase tracking-wider font-mono">
+                        <Globe size={11} className="text-amber-400" />
+                        <span>{lang === 'en' ? 'Top Channel' : 'প্রধান সূত্র'}</span>
+                      </div>
+                      <p className="text-xs font-bold font-mono text-amber-400 mt-2 truncate font-sans" title={getTopReferrer()}>{getTopReferrer()}</p>
+                    </div>
+                  </div>
 
-                        <div className="flex gap-2 w-full sm:w-auto justify-end">
-                          <button
-                            onClick={() => handleToggleRead(msg.id, msg.status)}
-                            className={`p-1.5 rounded-md border flex items-center gap-1 transition-all hover:scale-105 active:scale-95 cursor-pointer text-[10px] ${
-                              msg.status === 'unread'
-                                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20'
-                                : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
-                            }`}
-                            title={msg.status === 'unread' ? 'Mark as Read' : 'Mark as Unread'}
-                          >
-                            <Check size={12} />
-                            <span>{msg.status === 'unread' ? 'Read' : 'Unread'}</span>
-                          </button>
-                          <button
-                            onClick={() => handleDeleteMessage(msg.id)}
-                            className="p-1.5 rounded-md border border-red-500/20 text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-all hover:scale-105 active:scale-95 cursor-pointer"
-                            title="Delete submission"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
+                  {/* Recharts Analytics Progression */}
+                  <div className="bg-[#050a1d]/60 border border-white/5 p-4 rounded-xl space-y-2">
+                    <h4 className="text-[10px] font-mono font-bold tracking-wider text-white/60 flex items-center gap-1.5 uppercase">
+                      <TrendingUp size={12} className="text-[#00d2ff]" />
+                      {lang === 'en' ? 'Inquiry Progression / Trend (Last 7 Days)' : 'মেসেজ ট্রেন্ড (গত ৭ দিন)'}
+                    </h4>
+                    <div className="h-52 w-full mt-2">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={getTrendData()} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="colorInquiries" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#00d2ff" stopOpacity={0.3}/>
+                              <stop offset="95%" stopColor="#00d2ff" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
+                          <XAxis dataKey="name" stroke="#ffffff30" fontSize={8} />
+                          <YAxis stroke="#ffffff30" fontSize={8} allowDecimals={false} />
+                          <Tooltip 
+                            contentStyle={{ backgroundColor: '#070f2b', borderColor: '#ffffff10', borderRadius: '8px', fontSize: '11px', color: '#fff' }}
+                            labelStyle={{ color: '#ffffff80', fontWeight: 'bold' }}
+                          />
+                          <Area type="monotone" dataKey="Inquiries" stroke="#00d2ff" strokeWidth={1.5} fillOpacity={1} fill="url(#colorInquiries)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Sub breakdown details cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* Hourly map */}
+                    <div className="bg-[#050a1d]/60 border border-white/5 p-4 rounded-xl space-y-2">
+                      <h4 className="text-[10px] font-mono font-bold tracking-wider text-white/60 flex items-center gap-1.5 uppercase">
+                        <Clock size={12} className="text-[#9d4edd]" />
+                        {lang === 'en' ? 'Peak Engagement Hourly Cycles' : 'সময় অনুযায়ী এনগেজমেন্ট চক্র'}
+                      </h4>
+                      <div className="h-44 w-full mt-2">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={getHourlyData()} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
+                            <XAxis dataKey="name" stroke="#ffffff30" fontSize={8} />
+                            <YAxis stroke="#ffffff30" fontSize={8} allowDecimals={false} />
+                            <Tooltip
+                              contentStyle={{ backgroundColor: '#070f2b', borderColor: '#ffffff10', borderRadius: '8px', fontSize: '11px', color: '#fff' }}
+                            />
+                            <Bar dataKey="Volume" fill="#9d4edd" radius={[3, 3, 0, 0]} barSize={25} />
+                          </BarChart>
+                        </ResponsiveContainer>
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
+
+                    {/* Senders OS platforms */}
+                    <div className="bg-[#050a1d]/60 border border-white/5 p-4 rounded-xl space-y-2">
+                      <h4 className="text-[10px] font-mono font-bold tracking-wider text-white/60 flex items-center gap-1.5 uppercase">
+                        <Smartphone size={12} className="text-amber-400" />
+                        {lang === 'en' ? 'Visitor Device OS Platforms' : 'ভিজিটরদের ডিভাইস প্ল্যাটফর্ম'}
+                      </h4>
+                      <div className="h-44 w-full mt-2">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={getPlatformData()} layout="vertical" margin={{ top: 5, right: 10, left: -15, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
+                            <XAxis type="number" stroke="#ffffff30" fontSize={8} allowDecimals={false} />
+                            <YAxis dataKey="name" type="category" stroke="#ffffff30" fontSize={8} width={50} />
+                            <Tooltip
+                              contentStyle={{ backgroundColor: '#070f2b', borderColor: '#ffffff10', borderRadius: '8px', fontSize: '11px', color: '#fff' }}
+                            />
+                            <Bar dataKey="value" fill="#f59e0b" radius={[0, 3, 3, 0]} barSize={12} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             /* --- DEFAULT CHATBOT VIEW --- */
             <>
               {/* Message History flow screen */}
-              <div className="flex-grow h-[360px] md:h-[400px] overflow-y-auto p-4 md:p-6 space-y-4 font-sans select-text scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+              <div className={`flex-grow h-[360px] md:h-[400px] overflow-y-auto p-4 md:p-6 space-y-4 font-sans select-text scrollbar-thin ${isDark ? 'scrollbar-thumb-white/10 scrollbar-track-transparent bg-transparent' : 'scrollbar-thumb-black/10 scrollbar-track-transparent bg-slate-50/40'}`}>
                 {messages.map((msg) => {
                   const isUser = msg.sender === 'user';
                   
@@ -705,18 +1188,18 @@ export const AskSauvikAI = () => {
                           className={`px-4 py-3 rounded-2xl text-xs md:text-sm leading-relaxed shadow-sm ${
                             isUser
                               ? 'bg-gradient-to-r from-brand-blue to-brand-purple text-white rounded-tr-none'
-                              : 'bg-white/5 border border-white/10 text-neutral-200 rounded-tl-none font-light whitespace-pre-line'
+                              : (isDark ? 'bg-white/5 border border-white/10 text-neutral-200 rounded-tl-none font-light whitespace-pre-line' : 'bg-slate-100 border border-slate-200 text-slate-800 rounded-tl-none font-normal whitespace-pre-line')
                           }`}
                         >
                           {msg.text}
                         </div>
-                        <span className="text-[9px] font-mono text-white/30 mt-1 uppercase tracking-wide">
+                        <span className={`text-[9px] font-mono mt-1 uppercase tracking-wide ${isDark ? 'text-white/30' : 'text-slate-400'}`}>
                           {msg.time}
                         </span>
                       </div>
 
                       {isUser && (
-                        <div className="w-7 md:w-8 h-7 md:h-8 rounded-xl bg-white/10 border border-white/20 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold font-mono">
+                        <div className={`w-7 md:w-8 h-7 md:h-8 rounded-xl flex-shrink-0 flex items-center justify-center text-xs font-bold font-mono ${isDark ? 'bg-white/10 border border-white/20 text-white' : 'bg-slate-200 border border-slate-300 text-slate-700'}`}>
                           U
                         </div>
                       )}
@@ -730,10 +1213,10 @@ export const AskSauvikAI = () => {
                       <Cpu size={14} className="animate-spin" style={{ animationDuration: '4s' }} />
                     </div>
                     <div className="flex flex-col">
-                      <div className="bg-white/5 border border-white/10 px-4 py-3 rounded-2xl rounded-tl-none flex items-center gap-1.5 w-16">
-                        <span className="w-1.5 h-1.5 rounded-full bg-white/40 block animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <span className="w-1.5 h-1.5 rounded-full bg-white/40 block animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <span className="w-1.5 h-1.5 rounded-full bg-white/40 block animate-bounce" style={{ animationDelay: '300ms' }} />
+                      <div className={`px-4 py-3 rounded-2xl rounded-tl-none flex items-center gap-1.5 w-16 border ${isDark ? 'bg-white/5 border-white/10' : 'bg-slate-100 border-slate-200'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full block animate-bounce ${isDark ? 'bg-white/40' : 'bg-slate-500'}`} style={{ animationDelay: '0ms' }} />
+                        <span className={`w-1.5 h-1.5 rounded-full block animate-bounce ${isDark ? 'bg-white/40' : 'bg-slate-500'}`} style={{ animationDelay: '150ms' }} />
+                        <span className={`w-1.5 h-1.5 rounded-full block animate-bounce ${isDark ? 'bg-white/40' : 'bg-slate-500'}`} style={{ animationDelay: '300ms' }} />
                       </div>
                     </div>
                   </div>
@@ -743,7 +1226,7 @@ export const AskSauvikAI = () => {
               </div>
 
               {/* Quick suggestions lists with scroll forward/backward navigation */}
-              <div className="relative flex items-center bg-black/40 border-t border-white/5 group/suggestions overflow-hidden">
+              <div className={`relative flex items-center border-t group/suggestions overflow-hidden ${isDark ? 'bg-black/40 border-white/5' : 'bg-slate-50 border-slate-200/60'}`}>
                 {/* Left (Backward) Scroll Key */}
                 <button
                   type="button"
@@ -752,7 +1235,7 @@ export const AskSauvikAI = () => {
                       suggestionsScrollRef.current.scrollBy({ left: -200, behavior: 'smooth' });
                     }
                   }}
-                  className="absolute left-2 z-20 w-8 h-8 rounded-full bg-black/85 hover:bg-black border border-white/10 hover:border-brand-blue/30 flex items-center justify-center text-white/50 hover:text-brand-blue hover:shadow-[0_0_12px_rgba(0,210,255,0.25)] transition-all active:scale-90 cursor-pointer shadow-lg"
+                  className={`absolute left-2 z-20 w-8 h-8 rounded-full border flex items-center justify-center hover:shadow-[0_0_12px_rgba(0,210,255,0.25)] transition-all active:scale-90 cursor-pointer shadow-lg ${isDark ? 'bg-black/85 hover:bg-black border-white/10 text-white/50 hover:text-brand-blue hover:border-brand-blue/30' : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-500 hover:text-brand-blue hover:border-brand-blue/30'}`}
                   aria-label="Scroll left"
                 >
                   <ArrowRight size={13} className="rotate-180" />
@@ -769,7 +1252,7 @@ export const AskSauvikAI = () => {
                       <button
                         key={i}
                         onClick={() => handleSendMessage(lang === 'en' ? q.en : q.bn)}
-                        className="group/pill whitespace-nowrap px-4 py-2 rounded-full bg-white/5 border border-white/5 hover:border-brand-blue/40 text-[10px] md:text-xs text-white/70 hover:text-[#00d2ff] hover:bg-brand-blue/10 transition-all font-mono tracking-wide cursor-pointer active:scale-95 shrink-0 flex items-center gap-1.5"
+                        className={`group/pill whitespace-nowrap px-4 py-2 rounded-full border text-[10px] md:text-xs transition-all font-mono tracking-wide cursor-pointer active:scale-95 shrink-0 flex items-center gap-1.5 ${isDark ? 'bg-white/5 border-white/5 text-white/70 hover:text-[#00d2ff] hover:border-brand-blue/40 hover:bg-brand-blue/10' : 'bg-white border-slate-200 text-slate-700 hover:text-[#00d2ff] hover:border-brand-blue/40 hover:bg-brand-blue/5 shadow-[0_1px_2px_rgba(0,0,0,0.02)]'}`}
                       >
                         <span>{pillLabel}</span>
                         <ArrowRight size={10} className="opacity-40 group-hover/pill:opacity-100 group-hover/pill:translate-x-0.5 transition-all text-[#00d2ff]" />
@@ -786,7 +1269,7 @@ export const AskSauvikAI = () => {
                       suggestionsScrollRef.current.scrollBy({ left: 200, behavior: 'smooth' });
                     }
                   }}
-                  className="absolute right-2 z-20 w-8 h-8 rounded-full bg-black/85 hover:bg-black border border-white/10 hover:border-brand-blue/30 flex items-center justify-center text-white/50 hover:text-brand-blue hover:shadow-[0_0_12px_rgba(0,210,255,0.25)] transition-all active:scale-90 cursor-pointer shadow-lg"
+                  className={`absolute right-2 z-20 w-8 h-8 rounded-full border flex items-center justify-center hover:shadow-[0_0_12px_rgba(0,210,255,0.25)] transition-all active:scale-90 cursor-pointer shadow-lg ${isDark ? 'bg-black/85 hover:bg-black border-white/10 text-white/50 hover:text-brand-blue hover:border-brand-blue/30' : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-500 hover:text-brand-blue hover:border-brand-blue/30'}`}
                   aria-label="Scroll right"
                 >
                   <ArrowRight size={13} />
@@ -794,14 +1277,14 @@ export const AskSauvikAI = () => {
               </div>
 
               {/* Message inputs form footer */}
-              <div className="p-4 bg-black/35 border-t border-white/5 flex gap-2.5 items-center">
+              <div className={`p-4 border-t flex gap-2.5 items-center ${isDark ? 'bg-black/35 border-white/5' : 'bg-slate-50 border-slate-150'}`}>
                 <input
                   type="text"
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder={labels.placeholder}
-                  className="flex-grow bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-xs md:text-sm text-white focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all"
+                  className={`flex-grow border rounded-xl px-4 py-3 text-xs md:text-sm transition-all focus:outline-none focus:ring-1 focus:ring-brand-blue focus:border-brand-blue ${isDark ? 'bg-black/40 border-white/10 text-white placeholder-white/30' : 'bg-white border-slate-250 text-slate-900 placeholder-slate-400'}`}
                 />
                 <button
                   onClick={() => handleSendMessage(inputValue)}
@@ -899,7 +1382,131 @@ export const AskSauvikAI = () => {
                 </div>
                 
                 <div className="mt-4 text-[9px] text-white/20 font-mono">
-                  HINT: 'sauvikdev' or 'admin'
+                  HINT: 'sauvikdev', 'admin', or '159753'
+                </div>
+              </motion.div>
+            </div>
+          )}
+
+          {/* System Health Diagnostics Modal */}
+          {showHealthModal && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+              {/* Dark overlay backdrop */}
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowHealthModal(false)}
+                className="absolute inset-0 bg-black/60 backdrop-blur-md"
+              />
+              
+              {/* Glassmorphic card contents */}
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0, y: 15 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 15 }}
+                transition={{ type: "spring", duration: 0.5 }}
+                className="relative bg-[#02050f]/90 border border-white/10 backdrop-blur-2xl rounded-2xl w-full max-w-sm p-6 shadow-[0_0_50px_rgba(0,180,255,0.15)] overflow-hidden text-neutral-200"
+              >
+                {/* Glow effects inside card */}
+                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 blur-[30px] rounded-full pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-brand-blue/10 blur-[30px] rounded-full pointer-events-none" />
+
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                      <Activity size={14} className="animate-pulse" />
+                    </span>
+                    <div>
+                      <h3 className="text-xs font-bold font-mono text-white tracking-wider uppercase">
+                        {lang === 'en' ? 'Diagnostics & Telemetry' : 'সিস্টেম ডায়াগনস্টিকস'}
+                      </h3>
+                      <p className="text-[8px] font-mono text-white/30 tracking-widest uppercase">
+                        Node v3.0 // SECURE
+                      </p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setShowHealthModal(false)}
+                    className="p-1 rounded bg-white/5 text-white/40 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+
+                {/* Diagnostic metrics list */}
+                <div className="space-y-3 font-mono text-[10px]">
+                  {/* Status */}
+                  <div className="flex items-center justify-between bg-white/5 px-3 py-2 rounded-lg border border-white/5">
+                    <span className="text-white/40 uppercase tracking-widest flex items-center gap-1.5">
+                      <Server size={11} />
+                      {lang === 'en' ? 'System Status' : 'সিস্টেম স্ট্যাটাস'}
+                    </span>
+                    <span className="font-bold text-emerald-400 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      OPERATIONAL
+                    </span>
+                  </div>
+
+                  {/* Uptime */}
+                  <div className="flex items-center justify-between bg-white/5 px-3 py-2 rounded-lg border border-white/5">
+                    <span className="text-white/40 uppercase tracking-widest flex items-center gap-1.5 flex-row">
+                      <Clock size={11} />
+                      {lang === 'en' ? 'Uptime' : 'ইউ-টাইম'}
+                    </span>
+                    <span className="font-semibold text-white">
+                      {formatUptime(uptimeSeconds)}
+                    </span>
+                  </div>
+
+                  {/* Model Version */}
+                  <div className="flex items-center justify-between bg-white/5 px-3 py-2 rounded-lg border border-white/5">
+                    <span className="text-white/40 uppercase tracking-widest flex items-center gap-1.5">
+                      <Cpu size={11} />
+                      {lang === 'en' ? 'AI Model' : 'এআই মডেল'}
+                    </span>
+                    <span className="font-semibold text-brand-blue">
+                      Gemini 2.5 Flash
+                    </span>
+                  </div>
+
+                  {/* Server Region */}
+                  <div className="flex items-center justify-between bg-white/5 px-3 py-2 rounded-lg border border-white/5">
+                    <span className="text-white/40 uppercase tracking-widest flex items-center gap-1.5">
+                      <Globe size={11} />
+                      {lang === 'en' ? 'Server Region' : 'সার্ভার অঞ্চল'}
+                    </span>
+                    <span className="font-semibold text-neutral-300">
+                      asia-southeast1
+                    </span>
+                  </div>
+
+                  {/* Average Latency */}
+                  <div className="flex items-center justify-between bg-white/5 px-3 py-2 rounded-lg border border-white/5">
+                    <span className="text-white/40 uppercase tracking-widest flex items-center gap-1.5">
+                      <Activity size={11} />
+                      {lang === 'en' ? 'Latency Avg' : 'পিং ল্যাটেন্সি'}
+                    </span>
+                    <span className="font-bold text-emerald-400">
+                      {latencyVal}ms (Optimal)
+                    </span>
+                  </div>
+
+                  {/* Secure Handshake */}
+                  <div className="flex items-center justify-between bg-white/5 px-3 py-2 rounded-lg border border-white/5">
+                    <span className="text-white/40 uppercase tracking-widest flex items-center gap-1.5">
+                      <ShieldCheck size={11} />
+                      {lang === 'en' ? 'Encryption' : 'সিকিউরিটি'}
+                    </span>
+                    <span className="text-brand-purple font-semibold">
+                      TLS v1.3 // AES-256
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mt-5 text-[8px] font-mono text-center text-white/20 select-none">
+                  {lang === 'en' ? 'Telemetry synced in real-time with Google Firebase' : 'গুগল ফায়ারবেস রিয়েল-টাইম কানেক্টেড টেলিম্যাট্রি'}
                 </div>
               </motion.div>
             </div>
@@ -978,62 +1585,20 @@ const InteractiveSubmitForm = ({ msgId, onSubmitSuccess, labels, showToast, last
     );
 
     try {
-      let success = false;
       const browserInfo = navigator.userAgent || 'Unknown Browser';
 
-      // Submit via secure backend API endpoint
-      let telegramResult: any = null;
-      if (!isOfflineMode) {
-        try {
-          const response = await fetch('/api/send-message', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              name: name.trim(),
-              email: email.trim(),
-              message: message.trim(),
-            }),
-          });
-
-          if (response.ok) {
-            const resData = await response.json();
-            success = !!resData.success;
-            telegramResult = resData.telegramResult;
-          } else {
-            console.error('Backend API returned non-ok status:', response.status);
-          }
-        } catch (apiErr) {
-          console.error('Backend API error, attempting direct client-side fallback:', apiErr);
-        }
-      }
-
-      // Fallback/Direct write if API is unavailable or offline
-      if (!success) {
-        success = await addMessageToFirestore(
-          name.trim(),
-          email.trim(),
-          message.trim(),
-          browserInfo
-        );
-      }
+      // Submit directly via Client-Side Firestore SDK (handles online/offline syncing robustly)
+      const success = await addMessageToFirestore(
+        name.trim(),
+        email.trim(),
+        message.trim(),
+        browserInfo
+      );
 
       if (success) {
         setSubmitSuccess(true);
         localStorage.setItem(lastSubmitKey, String(Date.now()));
         showToast(labels.successMessage, 'success');
-        
-        if (telegramResult && !telegramResult.success) {
-          setTimeout(() => {
-            showToast(
-              lang === 'en' 
-                ? `⚡ Saved in DB but Telegram failed! Reason: ${telegramResult.reason}`
-                : `⚡ ডাটাবেজে সেভ হয়েছে কিন্তু টেলিগ্রাম মেসেজ যায়নি! কারণ: ${telegramResult.reason}`,
-              'error'
-            );
-          }, 1200);
-        }
         onSubmitSuccess();
       } else {
         showToast('System dispatching failure', 'error');

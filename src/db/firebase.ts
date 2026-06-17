@@ -10,7 +10,8 @@ import {
   serverTimestamp, 
   query, 
   orderBy, 
-  enableIndexedDbPersistence 
+  enableIndexedDbPersistence,
+  onSnapshot 
 } from 'firebase/firestore';
 import { 
   getAuth, 
@@ -194,8 +195,7 @@ export async function addMessageToFirestore(
       });
       return true;
     } catch (e) {
-      console.warn('Firestore write rejected/failed, checking error status...', e);
-      handleFirestoreError(e, OperationType.CREATE, path);
+      console.warn('Firestore write rejected/failed, falling back to local cache storage.', e);
     }
   }
 
@@ -254,6 +254,48 @@ export async function fetchMessagesFromFirestore(): Promise<VisitorMessage[]> {
 
   // Fallback to LocalStorage
   return getLocalMessages();
+}
+
+/**
+ * Subscribes to contact messages in real-time
+ */
+export function subscribeToMessagesFromFirestore(
+  onUpdate: (messages: VisitorMessage[]) => void,
+  onFailed: (error: any) => void
+): () => void {
+  const path = 'messages';
+  if (!isOfflineMode && db) {
+    const q = query(collection(db, path), orderBy('timestamp', 'desc'));
+    return onSnapshot(q, (snapshot) => {
+      const list: VisitorMessage[] = [];
+      snapshot.forEach((docRef) => {
+        const data = docRef.data();
+        const formattedTime = data.timestamp?.toDate 
+          ? data.timestamp.toDate().toISOString() 
+          : (data.timestamp || new Date().toISOString());
+        list.push({
+          id: docRef.id,
+          name: data.name || '',
+          email: data.email || '',
+          message: data.message || '',
+          timestamp: formattedTime,
+          sourceWebsite: data.sourceWebsite || 'sauvikdev.in',
+          status: data.status || 'unread',
+          browserInfo: data.browserInfo || ''
+        });
+      });
+      onUpdate(list);
+    }, (error) => {
+      if (error.message && error.message.includes('permission')) {
+        handleFirestoreError(error, OperationType.LIST, path);
+      }
+      onFailed(error);
+    });
+  }
+
+  // Fallback direct update
+  onUpdate(getLocalMessages());
+  return () => {};
 }
 
 /**

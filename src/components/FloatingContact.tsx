@@ -16,24 +16,6 @@ export const FloatingContact = () => {
 
   const contactOptions = [
     {
-      id: 'whatsapp',
-      name: lang === 'en' ? 'WhatsApp' : 'হোয়াটসঅ্যাপ',
-      icon: <MessageCircle size={20} />,
-      href: 'https://wa.me/919475331894?text=Hi%20Sauvik,%20I%20saw%20your%20portfolio%20and%20would%20love%20to%20discuss%20a%20project!',
-      bgColor: 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-      glowColor: 'shadow-[0_0_15px_rgba(16,185,129,0.30)]',
-      tooltip: lang === 'en' ? 'Chat on WhatsApp' : 'হোয়াটসঅ্যাপে চ্যাট করুন',
-    },
-    {
-      id: 'telegram',
-      name: lang === 'en' ? 'Telegram' : 'টেলিগ্রাম',
-      icon: <Send size={18} />,
-      href: 'https://t.me/sauvikdev',
-      bgColor: 'bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border-sky-500/30',
-      glowColor: 'shadow-[0_0_15px_rgba(14,165,233,0.30)]',
-      tooltip: lang === 'en' ? 'Message on Telegram' : 'টেলিগ্রামে মেসেজ করুন',
-    },
-    {
       id: 'instagram',
       name: lang === 'en' ? 'Instagram' : 'ইনস্টাগ্রাম',
       icon: <Instagram size={18} />,

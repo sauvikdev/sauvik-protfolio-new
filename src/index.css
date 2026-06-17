@@ -60,3 +60,129 @@ img {
   width: max-content;
   animation: marquee 40s linear infinite;
 }
+
+/* ==========================================================================
+   LIGHT SYSTEM THEME - HIGH CONTRAST & READABILITY OVERRIDES
+   ========================================================================== */
+.light, .light * {
+  /* Dynamic overrides for standard high-contrast text accessibility in light mode */
+}
+
+/* Map standard dark-mode text-whites/slates to beautiful high-contrast charcoal black in light mode */
+.light .text-white,
+.light .text-slate-50,
+.light .text-slate-100,
+.light .text-slate-200,
+.light .text-slate-300,
+.light .text-zinc-50,
+.light .text-zinc-100,
+.light .text-zinc-200,
+.light .text-zinc-300,
+.light .text-gray-50,
+.light .text-gray-100,
+.light .text-gray-200,
+.light .text-gray-300,
+.light .text-app-text {
+  color: #0f172a !important;
+}
+
+/* Semi-transparent text overrides for clear accessibility in light mode */
+.light .text-white\/90,
+.light .text-white\/85,
+.light .text-white\/80,
+.light .text-white\/75,
+.light .text-white\/70,
+.light .text-slate-400,
+.light .text-zinc-400,
+.light .text-gray-400 {
+  color: #1e293b !important;
+}
+
+/* Muted label and paragraph overrides in light mode */
+.light .text-white\/60,
+.light .text-white\/50,
+.light .text-white\/45,
+.light .text-white\/40,
+.light .text-white\/35,
+.light .text-white\/30,
+.light .text-slate-500,
+.light .text-zinc-500,
+.light .text-gray-500,
+.light .text-text-secondary {
+  color: #475569 !important;
+}
+
+/* Super light/disabled/caption labels in light mode */
+.light .text-white\/20,
+.light .text-white\/15,
+.light .text-white\/10 {
+  color: #64748b !important;
+}
+
+/* PRESERVE LEGIBILITY OF TEXT ON BUTTONS & LABELS WITH DARK SOLID/GRADIENT BACKGROUNDS */
+.light .bg-gradient-to-r:not(.bg-clip-text):not(.text-transparent),
+.light .bg-gradient-to-br:not(.bg-clip-text):not(.text-transparent),
+.light .bg-gradient-to-tr:not(.bg-clip-text):not(.text-transparent),
+.light .bg-gradient-to-l:not(.bg-clip-text):not(.text-transparent),
+.light .bg-brand-blue,
+.light .bg-brand-purple,
+.light .bg-black,
+.light [class*="bg-gradient-"]:not(.bg-clip-text):not(.text-transparent),
+.light [class*="bg-black/85"] {
+  color: #ffffff !important;
+}
+
+.light .bg-clip-text,
+.light .text-transparent {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+.light .bg-gradient-to-r *:not(.bg-clip-text):not(.text-transparent),
+.light .bg-gradient-to-br *:not(.bg-clip-text):not(.text-transparent),
+.light .bg-gradient-to-tr *:not(.bg-clip-text):not(.text-transparent),
+.light .bg-brand-blue *,
+.light .bg-brand-purple *,
+.light .bg-black *,
+.light [class*="bg-gradient-"] *:not(.bg-clip-text):not(.text-transparent),
+.light [class*="bg-black/85"] * {
+  color: #ffffff !important;
+}
+
+/* PRESERVE WEB PORTFOLIO & CHAT MOCKUPS STATIC DARK GRAPHICS */
+.light [class*="bg-[#0506"] *,
+.light [class*="bg-[#0409"] * {
+  /* Restore the beautiful light text colors on static dark-looking mockup screens */
+}
+
+.light [class*="bg-[#0506"] .text-white,
+.light [class*="bg-[#0409"] .text-white,
+.light [class*="bg-[#0506"] h4,
+.light [class*="bg-[#0409"] h4,
+.light [class*="bg-[#0506"] p,
+.light [class*="bg-[#0409"] p,
+.light [class*="bg-[#0506"] span,
+.light [class*="bg-[#0409"] span {
+  color: #ffffff !important;
+}
+
+.light [class*="bg-[#0506"] .text-white\/50,
+.light [class*="bg-[#0409"] .text-white\/50 {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.light [class*="bg-[#0506"] .text-white\/40,
+.light [class*="bg-[#0409"] .text-white\/40 {
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.light [class*="bg-[#0506"] .text-white\/30,
+.light [class*="bg-[#0409"] .text-white\/30 {
+  color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.light [class*="bg-[#0506"] .text-white\/20,
+.light [class*="bg-[#0409"] .text-white\/20 {
+  color: rgba(255, 255, 255, 0.2) !important;
+}
+

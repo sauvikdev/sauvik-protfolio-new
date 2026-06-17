@@ -7,7 +7,9 @@ import React, { useState, useEffect, useRef, createContext, useContext } from 'r
 import { motion, AnimatePresence, useScroll, useSpring, useInView } from 'motion/react';
 import { ToastProvider, useToast } from './components/Toast';
 import { AskSauvikAI } from './components/AskSauvikAI';
+import { SauvikAISection } from './components/SauvikAISection';
 import { FloatingContact } from './components/FloatingContact';
+import { addMessageToFirestore } from './db/firebase';
 import { 
   Code2, 
   Video, 
@@ -1406,167 +1408,6 @@ const Testimonials = () => {
   );
 };
 
-const Pricing = () => {
-  const { t, lang } = useLanguage();
-  const plans = [
-    { 
-      name: t('plan_basic'), 
-      price: lang === 'en' ? "₹50" : "৫০ টাকা", 
-      features: [t('feature_single_page'), t('feature_basic_video'), t('feature_design_concepts_2'), t('feature_fast_delivery')],
-      popular: false
-    },
-    { 
-      name: t('plan_standard'), 
-      price: lang === 'en' ? "₹100" : "১০০ টাকা", 
-      features: [t('feature_multi_page'), t('feature_pro_video'), t('feature_design_concepts_5'), t('feature_priority_support')],
-      popular: true
-    },
-    { 
-      name: t('plan_premium'), 
-      price: lang === 'en' ? "₹200" : "২০০ টাকা", 
-      features: [t('feature_full_custom'), t('feature_cinematic'), t('feature_unlimited_designs'), t('feature_dedicated_manager')],
-      popular: false
-    }
-  ];
-
-  return (
-    <section className="py-24 bg-app-bg relative overflow-hidden">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-brand-purple/5 blur-[120px] rounded-full" />
-      <motion.div 
-        initial={{ opacity: 0, y: 40 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-100px" }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-        className="max-w-7xl mx-auto px-6 relative z-10"
-      >
-        <div className="text-center mb-16">
-          <span className="text-brand-blue font-bold text-xs tracking-[0.2em] uppercase mb-4 block">{t('investment')}</span>
-          <h2 className="text-4xl md:text-5xl font-thin text-[var(--text-primary)] mb-4 uppercase">
-            {t('pricing_title_main')} <span className="font-bold text-brand-blue">{t('pricing_title_span')}</span>
-          </h2>
-          <p className="text-text-secondary text-sm font-light">{t('plan_intro')}</p>
-        </div>
-        <div className="grid md:grid-cols-3 gap-8">
-          {plans.map((plan, idx) => (
-            <motion.div
-              key={idx}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: idx * 0.1 }}
-              className={`p-10 rounded-3xl border ${plan.popular ? 'border-brand-blue bg-brand-blue/5 scale-105 shadow-2xl shadow-brand-blue/10' : 'border-glass-border bg-glass-bg'} flex flex-col`}
-            >
-              {plan.popular && (
-                <span className="text-[10px] font-bold bg-brand-blue text-white px-3 py-1 rounded-full w-fit mb-6 uppercase tracking-widest">{t('popular_badge')}</span>
-              )}
-              <h3 className="text-2xl font-bold text-[var(--text-primary)] mb-2">{plan.name}</h3>
-              <div className="flex items-baseline gap-1 mb-8">
-                <span className="text-4xl font-bold text-[var(--text-primary)]">{plan.price}</span>
-                <span className="text-text-secondary text-xs">{t('per_project')}</span>
-              </div>
-              
-              {/* Distinctive Facilities / Features List */}
-              <ul className="space-y-3.5 mb-10 text-left">
-                {plan.features.map((feature, i) => (
-                  <li key={i} className="flex items-center gap-3 text-text-secondary text-sm group/item">
-                    <div className={`p-1 rounded-lg shrink-0 transition-all ${plan.popular ? 'bg-brand-blue/20 text-brand-blue' : 'bg-white/5 text-brand-purple'}`}>
-                      <CheckCircle2 size={12} className="transition-transform group-hover/item:scale-115" />
-                    </div>
-                    <span className="group-hover/item:text-[var(--text-primary)] transition-colors text-xs md:text-sm font-light">
-                      {feature}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-
-              <div className="flex-grow" />
-              <button 
-                onClick={() => {
-                  const contactSection = document.getElementById('contact');
-                  contactSection?.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className={`w-full py-4 rounded-xl font-bold text-xs uppercase tracking-widest transition-all cursor-pointer ${plan.popular ? 'bg-brand-blue text-white hover:bg-brand-blue/90 shadow-lg shadow-brand-blue/20' : 'bg-white/5 text-[var(--text-primary)] hover:bg-white/10 border border-glass-border'}`}
-              >
-                {t('choose_plan')}
-              </button>
-            </motion.div>
-          ))}
-        </div>
-
-        {/* Secure Checkout / Trust Badges Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mt-16 p-8 rounded-3xl bg-glass-bg border border-glass-border relative overflow-hidden backdrop-blur-md"
-        >
-          {/* Subtle decorative background gradient */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-brand-blue/5 blur-[80px] pointer-events-none rounded-full" />
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-brand-purple/5 blur-[80px] pointer-events-none rounded-full" />
-
-          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
-            <div className="flex items-center gap-4 text-left max-w-lg">
-              <div className="p-3 bg-brand-blue/10 rounded-2xl border border-brand-blue/30 text-brand-blue shrink-0">
-                <ShieldCheck size={28} className="animate-pulse" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold uppercase tracking-wider text-app-text flex items-center gap-2">
-                  <Lock size={12} className="text-brand-blue" />
-                  {lang === 'en' ? '100% Secure Transactions' : '১০০% নিরাপদ ট্রানজেকশন'}
-                </h4>
-                <p className="text-xs text-text-secondary mt-1 font-light leading-relaxed">
-                  {lang === 'en' 
-                    ? 'Every invoice and transaction is protected using 256-bit SSL encryption. We accept secure direct bank transfers, Card payments, and UPI. All deposits are backed by a satisfaction guarantee contract.'
-                    : 'প্রতিটি ইনভয়েস এবং আর্থিক লেনদেন ২৫কে-বিট SSL এনক্রিপশন দ্বারা সুরক্ষিত। আমরা নিরাপদ ব্যাংক ট্রান্সফার, কার্ড পেমেন্ট এবং ইউপিআই গ্রহণ করি। সব ডিপোজিট চুক্তিনামা এবং সর্বোচ্চ মানের নিশ্চয়তা দ্বারা সুরক্ষিত।'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-col items-center md:items-end gap-3 shrink-0">
-              <span className="text-[10px] font-mono tracking-widest text-text-secondary uppercase">
-                {lang === 'en' ? 'ACCEPTED SAFE PAYMENT METHOD' : 'অনুমোদিত নিরাপদ পেমেন্ট মেথড'}
-              </span>
-              <div className="flex flex-wrap items-center justify-center gap-3">
-                {/* Visa Badge */}
-                <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center transition-all hover:bg-white/10 hover:border-brand-blue/30">
-                  <span className="text-xs font-serif font-black tracking-widest text-[#1a1f71] dark:text-[#ffffff] flex items-center gap-1">
-                    <span className="text-brand-blue">V</span>ISA
-                  </span>
-                </div>
-                {/* Mastercard Badge */}
-                <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center transition-all hover:bg-white/10 hover:border-brand-blue/30">
-                  <span className="text-[10px] font-bold tracking-tight text-white flex items-center gap-1 font-sans">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#eb001b] -mr-1.5 inline-block opacity-90" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#f79e1b] inline-block opacity-90" />
-                    <span className="ml-1 font-mono text-[9px] uppercase tracking-tighter opacity-80">MC</span>
-                  </span>
-                </div>
-                {/* UPI Badge */}
-                <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center transition-all hover:bg-white/10 hover:border-brand-blue/30">
-                  <span className="text-[10px] font-extrabold tracking-widest text-brand-blue font-mono">
-                    UPI
-                  </span>
-                </div>
-                {/* Bank Transfer Badge */}
-                <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center gap-1.5 transition-all hover:bg-white/10 hover:border-brand-blue/30">
-                  <CreditCard size={11} className="text-brand-purple" />
-                  <span className="text-[9px] font-bold tracking-wider text-text-secondary uppercase font-mono">
-                    {lang === 'en' ? 'BANK' : 'ব্যাংক'}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-1 text-[9px] text-brand-blue font-mono tracking-wider mt-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-brand-blue animate-ping" />
-                SSL_ENCRYPTED_GATEWAY: ACTIVE
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      </motion.div>
-    </section>
-  );
-};
-
 const InteractiveChatbot = ({ lang, onClose }: { lang: 'en' | 'bn'; onClose: () => void }) => {
   const [messages, setMessages] = useState<Array<{ id: number; sender: 'user' | 'bot'; text: string; time: string }>>([
     {
@@ -2659,7 +2500,7 @@ const WorkGallery = () => {
   );
 };
 
-const Skills = () => {
+const Skills = ({ isDark = true }: { isDark?: boolean }) => {
   const { t } = useLanguage();
   const skills = [
     { name: 'HTML / CSS', level: 95 },
@@ -2669,7 +2510,7 @@ const Skills = () => {
   ];
 
   return (
-    <section id="skills" className="py-24 bg-[#08080c] relative">
+    <section id="skills" className={`py-24 ${isDark ? 'bg-[#08080c]' : 'bg-slate-50 border-y border-slate-100'} relative`}>
       <div className="max-w-4xl mx-auto px-6">
         <div className="text-center mb-16">
           <span className="text-brand-purple font-bold text-xs tracking-[0.2em] uppercase mb-4 block">{t('expertise')}</span>
@@ -2682,11 +2523,11 @@ const Skills = () => {
             <div key={idx} className="group">
               <div className="flex justify-between items-center mb-2">
                 <div className="flex gap-2 items-center">
-                  <span className="text-white font-medium text-sm">{skill.name}</span>
+                  <span className={`font-medium text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{skill.name}</span>
                 </div>
                 <span className="text-text-secondary text-xs font-bold tracking-widest">{skill.level}%</span>
               </div>
-              <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+              <div className={`h-1 w-full ${isDark ? 'bg-white/5' : 'bg-slate-200'} rounded-full overflow-hidden`}>
                 <motion.div 
                   initial={{ width: 0 }}
                   whileInView={{ width: `${skill.level}%` }}
@@ -2709,10 +2550,10 @@ const Skills = () => {
             <motion.div 
               key={idx}
               whileHover={{ y: -5 }}
-              className="flex flex-col items-center gap-4 text-gray-500 hover:text-white transition-colors p-6 bg-white/5 border border-white/5 rounded-2xl"
+              className={`flex flex-col items-center gap-4 ${isDark ? 'text-gray-500 hover:text-white bg-white/5 border-white/5' : 'text-slate-500 hover:text-slate-900 bg-white border-slate-250 shadow-sm'} transition-colors p-6 border rounded-2xl`}
             >
               <div className="text-blue-500">{item.icon}</div>
-              <span className="text-xs uppercase tracking-widest font-mono text-center">{item.label}</span>
+              <span className={`text-xs uppercase tracking-widest font-mono text-center ${isDark ? 'text-gray-400' : 'text-slate-600'}`}>{item.label}</span>
             </motion.div>
           ))}
         </div>
@@ -2721,7 +2562,7 @@ const Skills = () => {
   );
 };
 
-const FAQ = () => {
+const FAQ = ({ isDark = true }: { isDark?: boolean }) => {
   const { t } = useLanguage();
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
@@ -2738,7 +2579,7 @@ const FAQ = () => {
   };
 
   return (
-    <section id="faq" className="py-24 bg-[#08080c] relative overflow-hidden">
+    <section id="faq" className={`py-24 ${isDark ? 'bg-[#08080c]' : 'bg-slate-50 border-y border-slate-100'} relative overflow-hidden`}>
       {/* Absolute ambient lights behind FAQ */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-brand-blue/5 blur-[120px] rounded-full pointer-events-none" />
       
@@ -2767,16 +2608,16 @@ const FAQ = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: idx * 0.1 }}
-                className="bg-glass-bg border border-glass-border rounded-xl md:rounded-2xl overflow-hidden hover:border-brand-blue/30 transition-all shadow-sm"
+                className={`${isDark ? 'bg-glass-bg border-glass-border' : 'bg-white border-slate-200 shadow-sm'} border rounded-xl md:rounded-2xl overflow-hidden hover:border-brand-blue/30 transition-all`}
               >
                 <button
                   onClick={() => toggleIndex(idx)}
                   className="w-full flex justify-between items-center p-6 md:p-7 text-left outline-none cursor-pointer group"
                 >
-                  <span className="text-app-text font-semibold text-sm md:text-base group-hover:text-brand-blue transition-colors pr-4">
+                  <span className={`text-sm md:text-base font-semibold group-hover:text-brand-blue transition-colors pr-4 ${isDark ? 'text-white' : 'text-slate-800'}`}>
                     {faq.question}
                   </span>
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-brand-blue group-hover:bg-brand-blue/10 transition-colors">
+                  <div className={`flex-shrink-0 w-8 h-8 rounded-full ${isDark ? 'bg-white/5' : 'bg-slate-100'} flex items-center justify-center text-brand-blue group-hover:bg-brand-blue/10 transition-colors`}>
                     <motion.div
                       animate={{ rotate: isOpen ? 180 : 0 }}
                       transition={{ duration: 0.3 }}
@@ -2795,7 +2636,7 @@ const FAQ = () => {
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.3, ease: "easeInOut" }}
                     >
-                      <div className="px-6 pb-7 md:px-7 md:pb-8 border-t border-glass-border/30 text-text-secondary text-xs md:text-sm leading-relaxed font-light">
+                      <div className={`px-6 pb-7 md:px-7 md:pb-8 border-t ${isDark ? 'border-glass-border/30 text-text-secondary' : 'border-slate-100 text-slate-600'} text-xs md:text-sm leading-relaxed font-light`}>
                         {faq.answer}
                       </div>
                     </motion.div>
@@ -2814,12 +2655,13 @@ const FAQ = () => {
 
 const Contact = () => {
   const [formData, setFormData] = useState({ name: '', email: '', message: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { t, lang } = useLanguage();
   const { showToast } = useToast();
 
-  const handleSend = (e: React.MouseEvent<HTMLAnchorElement>) => {
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!formData.name.trim() || !formData.email.trim() || !formData.message.trim()) {
-      e.preventDefault();
       showToast(
         lang === 'en' 
           ? 'Please fill in all fields before sending.' 
@@ -2831,7 +2673,6 @@ const Contact = () => {
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email.trim())) {
-      e.preventDefault();
       showToast(
         lang === 'en'
           ? 'Please enter a valid email address.'
@@ -2841,16 +2682,53 @@ const Contact = () => {
       return;
     }
 
+    setIsSubmitting(true);
     showToast(
       lang === 'en'
-        ? 'Draft prepared! Opening your mail application...'
-        : 'খসড়া প্রস্তুত! আপনার ইমেল অ্যাপ্লিকেশন খোলা হচ্ছে...',
-      'success'
+        ? 'Sending message and saving to database...'
+        : 'বার্তা পাঠানো হচ্ছে এবং ডেটাবেসে সংরক্ষণ করা হচ্ছে...',
+      'info'
     );
 
-    setTimeout(() => {
-      setFormData({ name: '', email: '', message: '' });
-    }, 800);
+    try {
+      const browserInfo = navigator.userAgent || 'Unknown Browser';
+      const success = await addMessageToFirestore(
+        formData.name.trim(),
+        formData.email.trim(),
+        formData.message.trim(),
+        browserInfo
+      );
+
+      if (success) {
+        showToast(
+          lang === 'en'
+            ? 'Success! Message saved and sent.'
+            : 'সফল হয়েছে! আপনার বার্তা ডেটাবেসে সফলভাবে যোগ করা হয়েছে।',
+          'success'
+        );
+
+        // Optional fallback: draft in default email app so user gets native mail backup
+        const mailtoUri = `mailto:sauvikd68@gmail.com?subject=Portfolio Inquiry from sauvikdev.in&body=Hi Sauvik,%0D%0A%0D%0AMy Name: ${encodeURIComponent(formData.name)}%0D%0AMy Email: ${encodeURIComponent(formData.email)}%0D%0A%0D%0AMessage:%0D%0A${encodeURIComponent(formData.message)}`;
+        
+        setTimeout(() => {
+          setFormData({ name: '', email: '', message: '' });
+          window.location.href = mailtoUri;
+        }, 800);
+      } else {
+        showToast(
+          lang === 'en' ? 'Database write failed' : 'বার্তা সংরক্ষণে ব্যর্থ',
+          'error'
+        );
+      }
+    } catch (err) {
+      console.error('Submission failed:', err);
+      showToast(
+        lang === 'en' ? 'An error occurred while sending' : 'মেসেজ পাঠানোর সময় একটি সমস্যা হয়েছে',
+        'error'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -2899,7 +2777,7 @@ const Contact = () => {
           viewport={{ once: true }}
           className="bg-glass-bg backdrop-blur-xl border border-glass-border p-10 rounded-[20px]"
         >
-          <div className="space-y-6">
+          <form onSubmit={handleSend} className="space-y-6">
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-[10px] uppercase tracking-widest font-bold text-brand-purple">{lang === 'en' ? 'Name' : 'নাম'}</label>
@@ -2910,6 +2788,7 @@ const Contact = () => {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full bg-black/20 border border-glass-border rounded-lg px-4 py-3 text-white focus:outline-none focus:border-brand-blue transition-colors text-sm" 
+                  disabled={isSubmitting}
                 />
               </div>
               <div className="space-y-2">
@@ -2921,6 +2800,7 @@ const Contact = () => {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="w-full bg-black/20 border border-glass-border rounded-lg px-4 py-3 text-white focus:outline-none focus:border-brand-blue transition-colors text-sm" 
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
@@ -2933,22 +2813,25 @@ const Contact = () => {
                 value={formData.message}
                 onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                 className="w-full bg-black/20 border border-glass-border rounded-lg px-4 py-3 text-white focus:outline-none focus:border-brand-blue transition-colors resize-none text-sm"
+                disabled={isSubmitting}
               ></textarea>
             </div>
 
             <div className="pt-4">
-              <a 
-                href={`mailto:sauvikd68@gmail.com?subject=Portfolio Inquiry from sauvikdev.in&body=Hi Sauvik,%0D%0A%0D%0AMy Name: ${formData.name}%0D%0AMy Email: ${formData.email}%0D%0A%0D%0AMessage:%0D%0A${formData.message}`}
-                onClick={handleSend}
-                className="w-full inline-flex items-center justify-center bg-gradient-to-r from-brand-blue to-brand-purple text-white font-bold py-4 rounded-lg transition-all shadow-lg shadow-brand-blue/20 active:scale-95 text-xs tracking-[0.2em]"
+              <button 
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full inline-flex items-center justify-center bg-gradient-to-r from-brand-blue to-brand-purple text-white font-bold py-4 rounded-lg transition-all shadow-lg shadow-brand-blue/20 active:scale-95 text-xs tracking-[0.2em] disabled:opacity-50 cursor-pointer"
               >
-                {lang === 'en' ? 'SEND MESSAGE VIA GMAIL' : 'জিমেইলের মাধ্যমে মেসেজ পাঠান'}
-              </a>
+                {isSubmitting 
+                  ? (lang === 'en' ? 'SENDING...' : 'পাঠানো হচ্ছে...') 
+                  : (lang === 'en' ? 'SEND MESSAGE & SAVE' : 'মেসেজ পাঠান এবং সংরক্ষণ করুন')}
+              </button>
               <p className="text-[9px] text-white/30 text-center uppercase tracking-[0.2em] mt-4">
-                {lang === 'en' ? 'Clicking will open your default email app' : 'ক্লিক করলে আপনার ডিফল্ট ইমেল অ্যাপ খুলবে'}
+                {lang === 'en' ? 'Will save to portal and draft email' : 'বার্তা পোর্টালে যাবে এবং ইমেলের খসড়া প্রস্তুত হবে'}
               </p>
             </div>
-          </div>
+          </form>
         </motion.div>
       </div>
     </section>
@@ -3080,13 +2963,13 @@ function PortfolioApp() {
       <GlowingDivider />
       <WorkGallery />
       <GlowingDivider />
-      <Pricing />
+      <Skills isDark={isDark} />
       <GlowingDivider />
-      <Skills />
+      <SauvikAISection isDark={isDark} toggleTheme={toggleTheme} />
       <GlowingDivider />
-      <FAQ />
+      <AskSauvikAI isDark={isDark} />
       <GlowingDivider />
-      <AskSauvikAI />
+      <FAQ isDark={isDark} />
       <FloatingContact />
       <GlowingDivider />
       <Contact />
